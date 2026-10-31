@@ -367,6 +367,7 @@ MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
 | 节点列表为空但订阅正常 | 看订阅卡错误信息，或「原始内容」确认服务器返回了什么 |
 | 启动成功但没法上网 | `iptables -t nat -L MIHOMO -n -v` 看规则；`iptables -t nat -L PREROUTING -n` 看跳转 |
 | 重启防火墙后失效 | `nat-start` 会即时重放；看门狗 45 秒兜底。Merlin：`/jffs/mihomo-merlin/ctl.sh reapply` |
+| 服务连通性显示「受限 / 超时」 | 探测走当前节点：403 可能是 Cloudflare/站点对出口 IP 的限制，超时可能是节点到该站点不通；换节点后点刷新 |
 | 想看内核输出 | 面板「日志」页，或 `tail -f` 数据目录下的 `logs/mihomo.log` |
 
 ## 13. 许可与出处
@@ -379,4 +380,4 @@ MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
 
 ## 更新记录
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前版本 **2.0.3**：面板重构 + 稳定性与 Merlin 安装修复。
+见 [CHANGELOG.md](CHANGELOG.md)。当前版本 **2.0.4**：面板重构 + 稳定性与 Merlin 安装修复。

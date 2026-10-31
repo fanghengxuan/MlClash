@@ -27,7 +27,9 @@ var reachabilityTargets = []ReachTarget{
 	{ID: "github", Name: "GitHub", URL: "https://github.com/robots.txt"},
 	{ID: "youtube", Name: "YouTube", URL: "https://www.youtube.com/generate_204"},
 	{ID: "chatgpt", Name: "ChatGPT", URL: "https://chat.openai.com/cdn-cgi/trace"},
-	{ID: "claude", Name: "Claude", URL: "https://claude.ai"},
+	// claude.ai 根域对非浏览器/机房 IP 常返回 Cloudflare 403，但链路是通的；
+	// robots.txt 稳定 200，更适合做连通性判断。
+	{ID: "claude", Name: "Claude", URL: "https://claude.ai/robots.txt"},
 	{ID: "netflix", Name: "Netflix", URL: "https://www.netflix.com/title/81280792"},
 	{ID: "bilibili", Name: "Bilibili", URL: "https://www.bilibili.com"},
 }

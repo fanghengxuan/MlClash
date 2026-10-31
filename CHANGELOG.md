@@ -1,5 +1,11 @@
 # 更新记录
 
+## 2.0.4（2026-11-01）
+
+- Claude 连通性探测改用 `https://claude.ai/robots.txt`：根域对非浏览器/机房 IP 常返回
+  Cloudflare 403，但链路正常，原探测会误报「受限」
+- README 排障补充：服务连通性走当前节点，403/超时可能是节点 IP 限制，换节点后刷新
+
 ## 2.0.3（2026-11-01）
 
 - 概览「服务连通性」的 GitHub 探测改用 `https://github.com/robots.txt`；
