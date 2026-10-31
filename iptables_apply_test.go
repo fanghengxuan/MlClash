@@ -20,6 +20,39 @@ func TestIsLoopback(t *testing.T) {
 	}
 }
 
+func TestParseMihomoPreroutingIfaces(t *testing.T) {
+	out := `-P PREROUTING ACCEPT
+-A PREROUTING -i br0 -j MIHOMO
+-A PREROUTING -i br1 -j MIHOMO
+-A PREROUTING -d 192.168.1.2/32 -j VSERVER
+-A PREROUTING -i eth0 -j OTHER`
+	got := parseMihomoPreroutingIfaces(out)
+	if len(got) != 2 || got[0] != "br0" || got[1] != "br1" {
+		t.Fatalf("parseMihomoPreroutingIfaces = %v, want [br0 br1]", got)
+	}
+}
+
+func TestServerRegexMatchesInlineYAML(t *testing.T) {
+	text := `
+proxies:
+    - { name: 英国, type: anytls, server: 51.89.216.207, port: 443 }
+    - { name: 美国, type: anytls, server: tj-us-1.example.com, port: 6002 }
+proxy-server-nameserver: ['https://223.5.5.5/dns-query']
+`
+	var hosts []string
+	for _, m := range reServerYAML.FindAllStringSubmatch(text, -1) {
+		hosts = append(hosts, m[2])
+	}
+	if len(hosts) != 2 || hosts[0] != "51.89.216.207" || hosts[1] != "tj-us-1.example.com" {
+		t.Fatalf("inline YAML server 解析 = %v", hosts)
+	}
+	for _, m := range reServerJSON.FindAllStringSubmatch(`{"server":"1.2.3.4"}`, -1) {
+		if m[1] != "1.2.3.4" {
+			t.Fatalf("JSON server 解析 = %v", m[1])
+		}
+	}
+}
+
 func TestIptablesApplyAuthLoopbackOnly(t *testing.T) {
 	app := &App{}
 	app.settings.PanelPassword = "secret"

@@ -54,8 +54,9 @@
     "autoStart": true,           // 开机自启（面板守护 + 引擎跟随启用状态）
     "blockQuic": true,           // 阻断 UDP/443 逼回 TCP
     "routerSelf": false,         // 是否也代理路由器自身流量（默认关，避免回环）
+    "lanIf": "br0",              // 局域网接口
     "subInterval": 6,            // 订阅自动更新间隔（小时，0=关闭）
-    "panelPassword": "",         // 空 = 免密
+    "panelPasswordSet": false,   // 只读；是否已设置密码（PUT 仍用 panelPassword 字段）
     "rulePreset": "cn-direct",   // cn-direct | proxy-all
     "sniffer": true
   }

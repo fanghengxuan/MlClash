@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const panelVersion = "2.0.4"
+const panelVersion = "2.0.5"
 
 // panelPort 管理面板监听端口（插件安装脚本与 ASP 都按此端口访问）
 const panelPort = 9380
@@ -177,7 +177,8 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 	log.Print("收到退出信号，停止引擎…")
-	app.engine.Stop()
+	// 保留 enabled 标记：面板被 ctl.sh restart 或系统服务拉起后要能自动恢复引擎。
+	app.engine.Shutdown()
 	_ = app.engine.ClearIptables()
 }
 

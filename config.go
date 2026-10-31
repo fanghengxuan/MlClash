@@ -311,6 +311,14 @@ func buildDNSSection(s Settings) map[string]any {
 	}
 	if len(fallbacks) > 0 {
 		dns["fallback"] = toAnySlice(fallbacks)
+		// mihomo 的 fallback-filter.geoip 默认是 true；一旦配置了 fallback，
+		// 内核启动/校验时会去下载 GeoIP MMDB。路由器直连 GitHub 常常超时，
+		// 结果整个配置校验失败、内核被停掉。这里显式关掉 geoip 过滤：
+		// fallback 仍按 ipcidr 生效，不依赖可能缺失的 MMDB。
+		dns["fallback-filter"] = map[string]any{
+			"geoip":  false,
+			"ipcidr": []any{"240.0.0.0/4"},
+		}
 	}
 	if s.DNSMode == "fake-ip" {
 		rng := strings.TrimSpace(s.DNSFakeIPRange)

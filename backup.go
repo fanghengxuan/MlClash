@@ -98,6 +98,7 @@ func (a *App) restoreBackup(b *BackupBundle) error {
 
 	a.subMu.Lock()
 	a.mu.Lock()
+	oldPassword := a.settings.PanelPassword
 	a.settings = s
 	a.subs = subs
 	err := a.saveSettings()
@@ -108,6 +109,12 @@ func (a *App) restoreBackup(b *BackupBundle) error {
 	a.subMu.Unlock()
 	if err != nil {
 		return err
+	}
+	// 备份里的密码可能和当前不同：旧会话不能继续沿用。
+	if oldPassword != s.PanelPassword {
+		a.sessionMu.Lock()
+		a.session = ""
+		a.sessionMu.Unlock()
 	}
 
 	for id, content := range b.Providers {

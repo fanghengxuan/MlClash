@@ -120,7 +120,7 @@
       return MM.fmt.bytes(rep.total) + ' / 可用 ' + MM.fmt.bytes(rep.free);
     }
     if (sub === 'appearance') return MM.theme.summary();
-    if (sub === 'security') return (s.panelPassword ? '已设密码' : '免密') + ' · ' +
+    if (sub === 'security') return (s.panelPasswordSet ? '已设密码' : '免密') + ' · ' +
       (s.autoStart ? '开机自启' : '未开机自启');
     if (sub === 'diagnostics') {
       var svc = state().service;
@@ -833,14 +833,43 @@
       groupCard('启动',
         switchRow('autoStart', '开机自启', '面板守护 + 引擎跟随启用状态')) +
       groupCard('访问',
-        stackRow('panelPassword', '面板密码', {
-          type: 'password', placeholder: '留空 = 免密', autocomplete: 'new-password',
+        stackRow('panelPassword', '设置新密码', {
+          type: 'password', placeholder: '输入新密码；留空保存不会修改', autocomplete: 'new-password',
           hint: '仅建议在可信 LAN 内使用；密码会明文保存在路由器数据目录'
         }) +
-        readonlyRow('当前状态', s.panelPassword ? '已设置密码' : '免密')) +
+        readonlyRow('当前状态', s.panelPasswordSet ? '已设置密码' : '免密')) +
+      (s.panelPasswordSet ? groupCard('清除',
+        actionRow('clearPassword', '清除密码', '删除面板密码，局域网内恢复免密访问', 'destructive')) : '') +
       groupCard('说明',
         noteBlock('修改密码后，已登录的浏览器会在下次请求时重新要求登录。'));
-    bindPage(container, {});
+    bindPage(container, { actions: { clearPassword: clearPanelPassword } });
+  }
+  function clearPanelPassword(btn) {
+    if (pageBusy) return;
+    MM.ui.confirm({
+      title: '清除面板密码？',
+      body: '清除后局域网内任何人都能直接打开面板。',
+      confirm: '清除', destructive: true
+    }).then(function (ok) {
+      if (!ok) return;
+      pageBusy = true;
+      if (btn) MM.ui.setBusy(btn, true);
+      MM.api('/api/settings', { method: 'PUT', body: { panelPassword: '' } }).then(function (d) {
+        MM.store.set({ settings: Object.assign({}, state().settings || {}, (d && d.settings) || {}) });
+        MM.ui.toast('面板密码已清除', 'ok');
+        return MM.data.loadSettings().catch(function () { return null; });
+      }).then(function () {
+        if (!active || currentSub !== 'security') return;
+        startDraft('security');
+        renderSub(currentCtx);
+        updateSummaries();
+      }).catch(function (e) {
+        MM.ui.toast((e && e.message) || '清除密码失败', 'err');
+      }).finally(function () {
+        pageBusy = false;
+        if (btn) MM.ui.setBusy(btn, false);
+      });
+    });
   }
 
   /* ---------- shared lifecycle helpers ---------- */

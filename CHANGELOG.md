@@ -1,5 +1,35 @@
 # 更新记录
 
+## 2.0.5（2026-11-01）
+
+真机逐项测试 12 个设置子页、约 40 个字段与内核/备份/存储/诊断动作后，修复 8 类问题
+（报告见 `docs/real-device-settings-test-report.md`）：
+
+- **全局模式实际仍直连**：mihomo 内置 `GLOBAL` 选择器默认 `DIRECT`，面板切到「全局」后
+  从未设置它。现在启动/热重载后按 `mode=global` 把 `GLOBAL` 切到主策略组 `🚀 节点选择`
+  （与 FlClash 的 GLOBAL 组行为一致）
+- **配置 DNS fallback 会导致内核被停掉**：fallback 未配 `fallback-filter` 时，mihomo 默认
+  `geoip=true` 并尝试下载 GeoIP MMDB；路由器直连 GitHub 超时会让配置校验失败。
+  现在写 `fallback-filter:{geoip:false,ipcidr:[240.0.0.0/4]}`；`Reload` 先 `mihomo -t`，
+  校验失败只还原旧配置并返回错误，不再 Restart 把运行中的内核停掉
+- **修改 `lanIf` 不生效**：切换接口后旧的 `PREROUTING -i br0 -j MIHOMO` 不会消失。
+  现在按 `iptables -t nat -S PREROUTING` 实际结果清理所有非当前接口跳转
+- **`ctl.sh restart` 后代理不自启**：面板收到 SIGTERM 调用 `Stop()` 会删除 `enabled` 标记。
+  新增 `Engine.Shutdown()` 保留运行意图，服务/面板重启后按 `autoStart` 自动恢复
+- **「代理路由器自身」会回环**：订阅 provider 是压缩单行 YAML（`- { ..., server: IP }`），
+  旧正则解析不到，代理服务器 IP 从未进入 bypass。现在支持行内 `server:`、只收 IPv4、
+  上限 256；实测 37 条服务器 `/32` 放行，routerSelf 可用且关闭后恢复直连
+- **关闭「跳过订阅证书校验」仍放行自签名**：移除了证书错误自动降级重试，严格按开关执行
+  （对齐 FlClash `badCertificateCallback = !checkCertificate`）
+- **面板密码**：`GET /api/settings` 不再明文返回 `panelPassword`，改为只读
+  `panelPasswordSet`；改密或从备份恢复后立即失效旧会话；前端改为「设置新密码（留空不改）」
+  并提供显式「清除密码」
+- **`lanIf` 未回传**：`/api/settings` 增加 `lanIf`，设置页「局域网接口」不再永远显示空
+- 修复配置校验失败时错误信息重复前缀（`配置校验失败：配置校验失败：`）
+
+验证：`go test -race ./...` 全绿；真机复验 37/37、设置页 Playwright 26/26、
+10 分钟订阅/规则调度器 6/6。
+
 ## 2.0.4（2026-11-01）
 
 - Claude 连通性探测改用 `https://claude.ai/robots.txt`：根域对非浏览器/机房 IP 常返回

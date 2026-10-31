@@ -447,19 +447,9 @@ func (a *App) doFetch(rawURL string, viaProxy bool, tag string) (*http.Response,
 		if i < 2 && tag != "" {
 			a.prog("fetch", tag, "retry", fmt.Sprintf("第 %d 次失败（%v），准备重试…", i+1, err), false, false)
 		}
-		// 证书问题且未开跳过校验时，自动降级重试（路由器时间不准很常见）
-		if !insecure && isCertErr(err) {
-			insecure = true
-			continue
-		}
 		time.Sleep(time.Duration(i+1) * 600 * time.Millisecond)
 	}
 	return nil, nil, lastErr
-}
-
-func isCertErr(err error) bool {
-	msg := err.Error()
-	return strings.Contains(msg, "证书") || strings.Contains(msg, "certificate") || strings.Contains(msg, "x509")
 }
 
 // fetchSubscription 拉取订阅：按设置决定直连/代理，失败自动换另一种再试一次。

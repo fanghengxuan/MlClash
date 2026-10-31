@@ -695,6 +695,7 @@ func TestPutSettingsRestartAtReturns400(t *testing.T) {
 		"autoRestart", "restartEveryHours", "restartAt", "autoIntervalSec", "autoToleranceMs",
 		"ruleSourcePreset", "ruleSourceURL", "ruleAutoUpdate", "ruleIntervalH",
 		"subUA", "subUACustom", "subInsecure", "subProxyMode",
+		"lanIf", "panelPasswordSet",
 	} {
 		if _, ok := st[k]; !ok {
 			t.Errorf("publicSettings 缺少字段 %q", k)
@@ -711,13 +712,17 @@ func TestNextRestartAt(t *testing.T) {
 	}
 
 	a.settings.RestartAt = "04:30"
+	if got := a.nextRestartAt(now); got != 0 {
+		t.Errorf("「启用定时重启」关闭时不应计算下次重启，实际 %d", got)
+	}
+
+	a.settings.AutoRestart = true
 	want := time.Date(2026, 10, 29, 4, 30, 0, 0, time.Local).Unix()
 	if got := a.nextRestartAt(now); got != want {
 		t.Errorf("今天 04:30 已过，下一次应为明天 04:30（%d），实际 %d", want, got)
 	}
 
 	// 周期与固定时刻同时配置时取更早的那个
-	a.settings.AutoRestart = true
 	a.settings.RestartEveryHours = 2
 	a.restartMu.Lock()
 	a.lastRestartAt = now.Add(-time.Hour).Unix()
@@ -735,10 +740,23 @@ func TestCheckScheduledRestart(t *testing.T) {
 	oldRestart := restartEngine
 	restartEngine = func(*Engine) error { return nil } // 调度测试不启动真实内核
 	t.Cleanup(func() { restartEngine = oldRestart })
-	a.settings.AutoRestart = false
-	a.settings.RestartAt = "04:30"
-
 	now := time.Date(2026, 10, 28, 5, 0, 0, 0, time.Local)
+
+	// 「启用定时重启」是总开关：关闭后固定时刻也不应该触发。
+	off := newBackendTestApp(t)
+	off.engine.running = true
+	off.settings.AutoRestart = false
+	off.settings.RestartAt = "04:30"
+	off.checkScheduledRestart(now)
+	off.restartMu.Lock()
+	offDaily, offAt := off.lastDailyDate, off.lastRestartAt
+	off.restartMu.Unlock()
+	if offDaily != "" || offAt != 0 {
+		t.Errorf("总开关关闭时不应执行固定时刻重启，daily=%q at=%d", offDaily, offAt)
+	}
+
+	a.settings.AutoRestart = true
+	a.settings.RestartAt = "04:30"
 	a.checkScheduledRestart(now)
 
 	a.restartMu.Lock()
@@ -850,6 +868,7 @@ func TestAutoGroupUsesSettings(t *testing.T) {
 
 func TestStatusExposesRestartFields(t *testing.T) {
 	a := newBackendTestApp(t)
+	a.settings.AutoRestart = true
 	a.settings.RestartAt = "04:30"
 
 	rec := httptest.NewRecorder()

@@ -256,6 +256,7 @@ func (e *Engine) startLocked() error {
 		a.addLog("warning", "应用转发规则失败："+err.Error())
 	}
 
+	e.ensureGlobalSelector()
 	e.startWatchdog()
 	return nil
 }
@@ -315,6 +316,15 @@ func (e *Engine) Stop() error {
 	e.life.Lock()
 	defer e.life.Unlock()
 	return e.stopLocked(false)
+}
+
+// Shutdown 处理面板进程退出信号。与用户在界面上点「停止」不同，
+// 这里要保留「用户希望引擎运行」的标记，否则 ctl.sh restart / 系统服务重启后
+// 面板会认为引擎是被用户停掉的，永远不会自动恢复（代理直接断掉）。
+func (e *Engine) Shutdown() error {
+	e.life.Lock()
+	defer e.life.Unlock()
+	return e.stopLocked(true)
 }
 
 // stopLocked 要求调用方持有 e.life。keepWanted=true 时保留「用户希望它运行」
@@ -404,24 +414,80 @@ func (a *App) writeMinimalConfig() error {
 	return writeJSONAtomic(a.configPath(), cfg)
 }
 
-// Reload 重新生成配置并热重载；失败时退回重启。
+// Reload 重新生成配置并热重载。
+// 先做一次 `mihomo -t` 校验：校验失败时保留旧配置并直接返回错误，
+// 不能因为一份新配置不合法就把正在运行的内核停掉（旧实现会转 Restart，
+// 校验失败后内核起不来，代理直接中断）。
 func (e *Engine) Reload() error {
 	if !e.Running() {
 		return nil
 	}
+	oldCfg, _ := os.ReadFile(e.app.configPath())
 	if err := e.app.WriteConfig(); err != nil {
 		return err
 	}
+	if err := e.validateConfig(); err != nil {
+		if oldCfg != nil {
+			_ = writeFileAtomic(e.app.configPath(), oldCfg, 0o600)
+		}
+		return err // validateConfig 已经带上「配置校验失败」前缀
+	}
 	if err := e.app.clash.ReloadConfig(e.app.configPath()); err != nil {
-		e.app.addLog("warning", "热重载失败，改为重启内核："+err.Error())
-		return e.Restart()
+		if oldCfg != nil {
+			_ = writeFileAtomic(e.app.configPath(), oldCfg, 0o600)
+		}
+		e.app.addLog("warning", "热重载失败，当前内核继续使用旧配置："+err.Error())
+		return err
 	}
 	if err := e.ApplyIptables(); err != nil {
 		e.app.addLog("warning", "重载后刷新转发规则失败："+err.Error())
 	}
+	e.ensureGlobalSelector()
 	e.app.invalidateCoreCache()
 	e.app.addLog("info", "配置已热重载")
 	return nil
+}
+
+// ensureGlobalSelector 让 mihomo 内置的 GLOBAL 选择器跟随主策略组。
+// mihomo 的 GLOBAL 默认是 DIRECT；面板切到「全局」模式时如果没有显式设置，
+// 所有流量仍然直连，设置看起来保存成功但实际不生效。
+func (e *Engine) ensureGlobalSelector() {
+	if !e.Running() {
+		return
+	}
+	e.app.mu.RLock()
+	mode := e.app.settings.Mode
+	e.app.mu.RUnlock()
+	if mode != "global" {
+		return
+	}
+	proxies, err := e.app.clash.Proxies()
+	if err != nil {
+		e.app.addLog("warning", "读取 GLOBAL 选择器失败："+err.Error())
+		return
+	}
+	g, ok := proxies["GLOBAL"]
+	if !ok {
+		return
+	}
+	if g.Now == groupMain {
+		return
+	}
+	contained := false
+	for _, name := range g.All {
+		if name == groupMain {
+			contained = true
+			break
+		}
+	}
+	if !contained {
+		return // 无订阅的最小配置里没有主组
+	}
+	if err := e.app.clash.Select("GLOBAL", groupMain); err != nil {
+		e.app.addLog("warning", "设置 GLOBAL 选择器失败："+err.Error())
+		return
+	}
+	e.app.addLog("info", "全局模式：GLOBAL 已切换到 "+groupMain)
 }
 
 // recoverBackoff 是自动恢复的退避序列（第 N 次失败后等多久再试）。
@@ -590,6 +656,11 @@ func (a *App) nextRestartAt(now time.Time) int64 {
 	s := a.settings
 	a.mu.RUnlock()
 
+	// 「启用定时重启」是总开关：关闭时既不做周期重启，也不做固定时刻重启。
+	if !s.AutoRestart {
+		return 0
+	}
+
 	var next int64
 	if s.RestartAt != "" {
 		if hh, mm, ok := parseHHMM(s.RestartAt); ok {
@@ -626,7 +697,8 @@ func (a *App) checkScheduledRestart(now time.Time) {
 	a.mu.RLock()
 	s := a.settings
 	a.mu.RUnlock()
-	if !s.AutoRestart && s.RestartAt == "" {
+	// 总开关关闭时，即使填了「每天固定时刻」也不重启。
+	if !s.AutoRestart {
 		return
 	}
 	if !a.engine.Running() {
@@ -735,9 +807,37 @@ func (e *Engine) ipt(args ...string) error {
 	return nil
 }
 
+// parseMihomoPreroutingIfaces 从 `iptables -t nat -S PREROUTING` 输出里
+// 找出所有跳到 MIHOMO 的接口。切换 lanIf 后旧接口的跳转不会自己消失，
+// 必须按实际现状清理，否则新设置根本没生效。
+func parseMihomoPreroutingIfaces(out string) []string {
+	var ifaces []string
+	for _, line := range strings.Split(out, "\n") {
+		f := strings.Fields(line)
+		if len(f) == 6 && f[0] == "-A" && f[1] == "PREROUTING" &&
+			f[2] == "-i" && f[4] == "-j" && f[5] == "MIHOMO" {
+			ifaces = append(ifaces, f[3])
+		}
+	}
+	return ifaces
+}
+
+// preroutingMihomoIfaces 实测当前 nat PREROUTING 里的 MIHOMO 跳转接口。
+func (e *Engine) preroutingMihomoIfaces() []string {
+	out, err := run(8*time.Second, iptablesBin(), "-t", "nat", "-S", "PREROUTING")
+	if err != nil {
+		return nil
+	}
+	return parseMihomoPreroutingIfaces(out)
+}
+
 var (
 	reServerJSON = regexp.MustCompile(`"server"\s*:\s*"([^"]+)"`)
-	reServerYAML = regexp.MustCompile(`(?m)^\s*-?\s*server\s*:\s*"?([^\s",}]+)`)
+	// 订阅 provider 常是压缩成一行的 YAML：
+	//   - { name: x, type: anytls, server: 1.2.3.4, port: 443 }
+	// server 不在行首，旧正则匹配不到，导致代理服务器 IP 从未进入 bypass 列表，
+	// 打开「代理路由器自身」时会回环。
+	reServerYAML = regexp.MustCompile(`(?m)(^|[\s,{])server\s*:\s*"?([^\s",}]+)`)
 )
 
 // proxyServerIPs 扫描 provider 文件里的服务器地址并尽量解析成 IP，
@@ -763,7 +863,7 @@ func (e *Engine) proxyServerIPs() []string {
 			hosts = append(hosts, m[1])
 		}
 		for _, m := range reServerYAML.FindAllStringSubmatch(text, -1) {
-			hosts = append(hosts, m[1])
+			hosts = append(hosts, m[2])
 		}
 	}
 	for _, h := range hosts {
@@ -773,6 +873,9 @@ func (e *Engine) proxyServerIPs() []string {
 		}
 		seen[h] = true
 		if ip := net.ParseIP(h); ip != nil {
+			if ip.To4() == nil {
+				continue // iptables 里加的是 /32，IPv6 不能直接照搬
+			}
 			out = append(out, h)
 			continue
 		}
@@ -781,14 +884,16 @@ func (e *Engine) proxyServerIPs() []string {
 			continue
 		}
 		for _, ip := range ips {
-			if net.ParseIP(ip) != nil && !seen[ip] {
+			p := net.ParseIP(ip)
+			if p != nil && p.To4() != nil && !seen[ip] {
 				seen[ip] = true
 				out = append(out, ip)
 			}
 		}
 	}
-	if len(out) > 64 {
-		out = out[:64]
+	// 订阅节点可能很多；上限太高会让 iptables 重建变慢，256 足够覆盖常见机场。
+	if len(out) > 256 {
+		out = out[:256]
 	}
 	return out
 }
@@ -839,6 +944,13 @@ func (e *Engine) ApplyIptables() error {
 		return err
 	}
 
+	// 切换过 lanIf 时先拆掉旧接口的跳转，否则旧规则仍然把流量送进 MIHOMO，
+	// 面板显示已换接口、实际转发路径没变。
+	for _, iface := range e.preroutingMihomoIfaces() {
+		if iface != lanIf {
+			_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", "MIHOMO")
+		}
+	}
 	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", "MIHOMO"); err != nil {
 		if err := e.ipt("-t", "nat", "-I", "PREROUTING", "1", "-i", lanIf, "-j", "MIHOMO"); err != nil {
 			return err
@@ -901,15 +1013,9 @@ func (e *Engine) ClearIptables() error {
 		e.mu.Unlock()
 		return nil
 	}
-	s := e.app.settings
-	lanIf := s.LanIf
-	if lanIf == "" {
-		lanIf = "br0"
-	}
-	for i := 0; i < 5; i++ {
-		if err := e.ipt("-t", "nat", "-D", "PREROUTING", "-i", lanIf, "-j", "MIHOMO"); err != nil {
-			break
-		}
+	// 按实际存在的跳转逐个删除，避免只清理当前 lanIf、把历史接口的规则留下来。
+	for _, iface := range e.preroutingMihomoIfaces() {
+		_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", "MIHOMO")
 	}
 	for i := 0; i < 5; i++ {
 		if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", "MIHOMO_OUT"); err != nil {

@@ -37,22 +37,24 @@ func okBody(extra map[string]any) map[string]any {
 
 func publicSettings(s Settings) map[string]any {
 	return map[string]any{
-		"mode":              s.Mode,
-		"allowLan":          s.AllowLan,
-		"redirPort":         s.RedirPort,
-		"mixedPort":         s.MixedPort,
-		"logLevel":          s.LogLevel,
-		"autoStart":         s.AutoStart,
-		"blockQuic":         s.BlockQuic,
-		"dnsEnable":         s.DNSEnable,
-		"dnsMode":           s.DNSMode,
-		"dnsListen":         s.DNSListen,
-		"dnsNameserver":     s.DNSNameserver,
-		"dnsFallback":       s.DNSFallback,
-		"dnsFakeIpRange":    s.DNSFakeIPRange,
-		"routerSelf":        s.RouterSelf,
-		"subInterval":       s.SubInterval,
-		"panelPassword":     s.PanelPassword,
+		"mode":           s.Mode,
+		"allowLan":       s.AllowLan,
+		"redirPort":      s.RedirPort,
+		"mixedPort":      s.MixedPort,
+		"logLevel":       s.LogLevel,
+		"autoStart":      s.AutoStart,
+		"blockQuic":      s.BlockQuic,
+		"dnsEnable":      s.DNSEnable,
+		"dnsMode":        s.DNSMode,
+		"dnsListen":      s.DNSListen,
+		"dnsNameserver":  s.DNSNameserver,
+		"dnsFallback":    s.DNSFallback,
+		"dnsFakeIpRange": s.DNSFakeIPRange,
+		"routerSelf":     s.RouterSelf,
+		"lanIf":          s.LanIf,
+		"subInterval":    s.SubInterval,
+		// 只暴露「是否已设置」，不把密码明文回传给浏览器。
+		"panelPasswordSet":  s.PanelPassword != "",
 		"rulePreset":        s.RulePreset,
 		"sniffer":           s.Sniffer,
 		"autoRestart":       s.AutoRestart,
@@ -266,6 +268,12 @@ func (a *App) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, 500, "保存设置失败："+err.Error())
 		return
+	}
+	// 改密码后让所有旧会话立即失效，否则旧 cookie 换个密码还能继续用。
+	if prev.PanelPassword != s.PanelPassword {
+		a.sessionMu.Lock()
+		a.session = ""
+		a.sessionMu.Unlock()
 	}
 	a.invalidateCoreCache()
 	if prev.LogLevel != s.LogLevel && a.hub != nil {
