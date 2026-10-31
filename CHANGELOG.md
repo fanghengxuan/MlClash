@@ -4,6 +4,11 @@
 
 - Claude 连通性探测改用 `https://claude.ai/robots.txt`：根域对非浏览器/机房 IP 常返回
   Cloudflare 403，但链路正常，原探测会误报「受限」
+- 服务连通性按连接质量分三档：`<1000ms` 绿、`1000–2499ms` 黄、`≥2500ms` 红；
+  `restricted` 黄，`timeout/fail` 红，`unknown` 灰（状态点与延迟文字同色）
+- **修复 cn-ip 规则集实际加载 0 条**：mihomo 对 `file + behavior=ipcidr` 按 `YamlRule` 解析，
+  原来直接喂纯文本 `chnroute.txt`，导致国内 IP 全部落到 `MATCH` 走代理；
+  现在生成 `chnroute.yaml`（`payload:` 格式），实测 ruleCount=7991，国内站点恢复 `DIRECT`
 - README 排障补充：服务连通性走当前节点，403/超时可能是节点 IP 限制，换节点后刷新
 
 ## 2.0.3（2026-11-01）

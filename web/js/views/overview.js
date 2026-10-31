@@ -76,13 +76,29 @@
     return { text: text, cls: q.level === 'risky' || risk ? 'warn' : '' };
   }
 
+  // 连接质量三档：<600ms 绿、600–1499ms 黄、>=1500ms 红；
+  // restricted 黄，timeout/fail 红，unknown 灰。
+  function reachQuality(t) {
+    var s = t && t.status;
+    if (s === 'ok') {
+      var ms = Number(t.latencyMs) || 0;
+      if (ms >= 2500) return { item: 'poor', cls: 'lat-err' };
+      if (ms >= 1000) return { item: 'slow', cls: 'lat-warn' };
+      return { item: 'ok', cls: 'lat-ok' };
+    }
+    if (s === 'restricted') return { item: 'restricted', cls: 'lat-warn' };
+    if (s === 'timeout' || s === 'fail') return { item: 'fail', cls: 'lat-err' };
+    return { item: 'unknown', cls: 'lat-none' };
+  }
+
   function reachInfo(t) {
     var s = t && t.status;
-    if (s === 'ok') return { text: (Number(t.latencyMs) || 0) + ' ms', cls: 'lat-ok' };
-    if (s === 'restricted') return { text: '受限', cls: 'lat-warn' };
-    if (s === 'timeout') return { text: '超时', cls: 'lat-none' };
-    if (s === 'fail') return { text: '失败', cls: 'lat-err' };
-    return { text: '未知', cls: 'lat-none' };
+    var q = reachQuality(t);
+    if (s === 'ok') return { text: (Number(t.latencyMs) || 0) + ' ms', cls: q.cls };
+    if (s === 'restricted') return { text: '受限', cls: q.cls };
+    if (s === 'timeout') return { text: '超时', cls: q.cls };
+    if (s === 'fail') return { text: '失败', cls: q.cls };
+    return { text: '未知', cls: q.cls };
   }
 
   function hexToRgb(hex) {
@@ -539,7 +555,8 @@
 
   function updateReachItem(el, t) {
     var info = reachInfo(t);
-    el.className = 'reach-item ' + (t.status || 'unknown');
+    var q = reachQuality(t);
+    el.className = 'reach-item ' + (t.status || 'unknown') + (q.item !== 'ok' ? ' ' + q.item : '');
     setText(el.__r.name, t.name || t.id || '目标');
     el.__r.lat.className = 'lat ' + info.cls;
     setText(el.__r.lat, info.text);

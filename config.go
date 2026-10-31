@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,8 +12,11 @@ const groupMain = "🚀 节点选择"
 const groupAuto = "♻️ 自动选择"
 const testURL = "http://www.gstatic.com/generate_204"
 
-func (a *App) configPath() string    { return filepath.Join(a.dataDir, "config.json") }
-func (a *App) ruleSetPath() string   { return filepath.Join(a.dataDir, "rules", "chnroute.txt") }
+func (a *App) configPath() string  { return filepath.Join(a.dataDir, "config.json") }
+func (a *App) ruleSetPath() string { return filepath.Join(a.dataDir, "rules", "chnroute.txt") }
+func (a *App) ruleProviderPath() string {
+	return filepath.Join(a.dataDir, "rules", "chnroute.yaml")
+}
 func (a *App) logPath() string       { return filepath.Join(a.dataDir, "logs", "mihomo.log") }
 func (a *App) mihomoAPIPath() string { return "127.0.0.1:9090" }
 func (a *App) enabledSubsLocked() []Sub {
@@ -27,6 +31,54 @@ func (a *App) enabledSubsLocked() []Sub {
 		out = append(out, s)
 	}
 	return out
+}
+
+// ensureRuleProviderYAML 把纯文本 chnroute.txt 转成 mihomo 期望的 YAML payload 格式。
+// mihomo 对 file + behavior=ipcidr 的规则集按 YamlRule 解析；直接喂纯文本会得到
+// ruleCount=0，所有流量都会落到 MATCH 走代理（国内站点因此被拖慢甚至超时）。
+func (a *App) ensureRuleProviderYAML() bool {
+	src := a.ruleSetPath()
+	fi, err := os.Stat(src)
+	if err != nil || fi.IsDir() {
+		return false
+	}
+	dst := a.ruleProviderPath()
+	if di, err := os.Stat(dst); err == nil && di.Size() > 0 && !di.ModTime().Before(fi.ModTime()) {
+		return true
+	}
+
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return false
+	}
+	var body strings.Builder
+	body.WriteString("payload:\n")
+	n := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(line); err != nil {
+			continue
+		}
+		body.WriteString("  - \"")
+		body.WriteString(line)
+		body.WriteString("\"\n")
+		n++
+	}
+	if n == 0 {
+		return false
+	}
+	tmp := dst + ".tmp"
+	if err := os.WriteFile(tmp, []byte(body.String()), 0o644); err != nil {
+		return false
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
+		return false
+	}
+	return true
 }
 
 // ensureRuleSet 检查国内 IP 列表是否存在；缺失时退化为不做国内直连。
@@ -158,12 +210,12 @@ func (a *App) BuildConfig() (map[string]any, error) {
 	// 规则
 	var rules []any
 	if s.RulePreset == "cn-direct" {
-		if fileExists(a.ruleSetPath()) {
+		if a.ensureRuleProviderYAML() {
 			cfg["rule-providers"] = map[string]any{
 				"cn-ip": map[string]any{
 					"type":     "file",
 					"behavior": "ipcidr",
-					"path":     a.ruleSetPath(),
+					"path":     a.ruleProviderPath(),
 				},
 			}
 			rules = append(rules, "RULE-SET,cn-ip,DIRECT")

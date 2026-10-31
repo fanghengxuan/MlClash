@@ -495,9 +495,10 @@ dialog.dlg-wide .dlg-actions,dialog.dlg-form .dlg-actions{padding:16px 0 0}
 .reach-updated{font-size:12px;line-height:16px;color:var(--on-surface-variant);margin-top:10px}
 .reach-dot{width:8px;height:8px;border-radius:50%;background:var(--on-surface-variant);flex:0 0 auto}
 .reach-item.ok .reach-dot{background:var(--ok)}
+.reach-item.slow .reach-dot{background:var(--warn)}
+.reach-item.poor .reach-dot,.reach-item.timeout .reach-dot,.reach-item.fail .reach-dot{background:var(--err)}
 .reach-item.restricted .reach-dot{background:var(--warn)}
-.reach-item.fail .reach-dot{background:var(--err)}
-.reach-item.timeout .reach-dot,.reach-item.unknown .reach-dot{background:var(--outline-variant)}
+.reach-item.unknown .reach-dot{background:var(--outline-variant)}
 
 /* ---------- nodes ---------- */
 .group-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}

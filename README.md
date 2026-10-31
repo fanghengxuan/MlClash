@@ -368,6 +368,7 @@ MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
 | 启动成功但没法上网 | `iptables -t nat -L MIHOMO -n -v` 看规则；`iptables -t nat -L PREROUTING -n` 看跳转 |
 | 重启防火墙后失效 | `nat-start` 会即时重放；看门狗 45 秒兜底。Merlin：`/jffs/mihomo-merlin/ctl.sh reapply` |
 | 服务连通性显示「受限 / 超时」 | 探测走当前节点：403 可能是 Cloudflare/站点对出口 IP 的限制，超时可能是节点到该站点不通；换节点后点刷新 |
+| 国内站点仍走代理 / 很慢 | 确认「设置 → 代理与端口 → 规则预设」是「国内直连」；2.0.4 已修复 cn-ip 规则集格式（原先加载 0 条），升级后国内 IP 会命中 DIRECT |
 | 想看内核输出 | 面板「日志」页，或 `tail -f` 数据目录下的 `logs/mihomo.log` |
 
 ## 13. 许可与出处
