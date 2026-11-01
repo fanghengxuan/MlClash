@@ -1,5 +1,22 @@
 # 更新记录
 
+## 2.0.6（2026-11-01）
+
+- **规则模式新增域名优先匹配，对齐 FlClash 的 geodata 做法**：
+  配置加入 `GEOSITE,cn,DIRECT`（在 `RULE-SET,cn-ip,DIRECT` 之前），并设置
+  `geodata-loader=memconservative`、`geox-url`（jsdelivr 镜像）、`geo-auto-update=false`
+- 面板负责下载并校验 `data/geosite.dat`（MetaCubeX geosite cn，约 4.3MB）：
+  首次安装后台补齐，校验用 `mihomo -t` 真加载 `GEOSITE,cn`，失败保留旧文件，
+  不影响 IP 规则与内核启动
+- 修复客户端使用境外 DoH/ECS 或命中海外 CDN 边缘时，国内域名（如 bilibili）
+  被 IP 规则误判走机场代理的问题；`cn-ip` CIDR 继续作为裸 IP/无 SNI 连接的兜底
+- 新增**可选**的 `GEOIP,CN,DIRECT`（默认关闭）：规则页开关开启后下载
+  `country.mmdb`（约 7.6MB，存为 `geoip.metadb`），按 IP 做国内直连；
+  受限的 jffs 空间下默认仍只用 `cn-ip` CIDR 兜底
+- 域名规则与 IP 规则一起自动更新（跟 `ruleAutoUpdate` / `ruleIntervalH` 同一调度）；
+  规则页显示域名规则/GEOIP 数据库的状态、大小、更新时间；`/api/rules/set` 与
+  `/api/rules/update` 返回 `geosite`/`geoip` 状态
+
 ## 2.0.5（2026-11-01）
 
 真机逐项测试 12 个设置子页、约 40 个字段与内核/备份/存储/诊断动作后，修复 8 类问题

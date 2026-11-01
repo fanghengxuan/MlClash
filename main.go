@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const panelVersion = "2.0.5"
+const panelVersion = "2.0.6"
 
 // panelPort 管理面板监听端口（插件安装脚本与 ASP 都按此端口访问）
 const panelPort = 9380
@@ -47,6 +47,7 @@ type App struct {
 
 	subMu     sync.Mutex // 串行化订阅的网络刷新
 	kernelMu  sync.Mutex // 串行化内核替换/回滚
+	geoMu     sync.Mutex // 串行化 geosite.dat 下载/校验
 	kinfoMu   sync.Mutex // 缓存内核版本/SHA，避免每次请求都跑 mihomo -v
 	kinfoKey  string
 	kinfoInfo kernelInfo
@@ -114,6 +115,10 @@ func main() {
 	app.hub = NewHub(app)
 	app.samples = newSampler(app)
 	app.ensureRuleSet()
+	// 后台补齐 geosite.dat；首次安装时先按 IP 规则启动，下载校验完成后自动热重载。
+	app.ensureGeoSiteAsync()
+	// GEOIP,CN 是可选开关，开启但数据库缺失时后台补齐。
+	app.ensureGeoIPAsync()
 
 	if err := app.engine.Prepare(); err != nil {
 		log.Printf("引擎准备失败: %v", err)

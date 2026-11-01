@@ -31,6 +31,9 @@ type Engine struct {
 	running   bool
 	startedAt time.Time
 	lastErr   string
+	// lastCfgHash 是内核最近一次成功加载的配置哈希。设置保存时用它判断
+	// 配置是否真的变化，避免只为 UA/密码这类不影响内核的字段重新解析 geosite。
+	lastCfgHash string
 	// gen 标识当前生命周期。进程退出时只有仍然是自己这一代才允许清理规则，
 	// 否则旧进程会把新实例的 iptables 清掉。
 	gen     uint64
@@ -68,6 +71,22 @@ func (e *Engine) Running() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.running
+}
+
+// waitCoreReady 等待 mihomo 的 external-controller 真正可用。
+// Running() 在进程启动后立刻为 true，但 API 可能还要 1–3 秒（GEOSITE 加载时更久）。
+func (e *Engine) waitCoreReady(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !e.Running() {
+			return false
+		}
+		if _, err := e.app.clash.Version(); err == nil {
+			return true
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return false
 }
 
 func (e *Engine) PID() int {
@@ -251,6 +270,9 @@ func (e *Engine) startLocked() error {
 		_ = e.stopLocked(false)
 		return err
 	}
+	e.mu.Lock()
+	e.lastCfgHash = fileSHA256(e.app.configPath())
+	e.mu.Unlock()
 
 	if err := e.ApplyIptables(); err != nil {
 		a.addLog("warning", "应用转发规则失败："+err.Error())
@@ -414,10 +436,19 @@ func (a *App) writeMinimalConfig() error {
 	return writeJSONAtomic(a.configPath(), cfg)
 }
 
+func fileSHA256(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(b)
+	return fmt.Sprintf("%x", sum)
+}
+
 // Reload 重新生成配置并热重载。
-// 先做一次 `mihomo -t` 校验：校验失败时保留旧配置并直接返回错误，
-// 不能因为一份新配置不合法就把正在运行的内核停掉（旧实现会转 Restart，
-// 校验失败后内核起不来，代理直接中断）。
+// 不再额外跑一遍 `mihomo -t`：ReloadConfig 本身会解析并拒绝非法配置，
+// 旧配置会被还原、运行中的内核继续用旧配置。GEOSITE 启用后 `mihomo -t`
+// 每次要加载 4MB geosite（约 3 秒），设置保存会明显变慢。
 func (e *Engine) Reload() error {
 	if !e.Running() {
 		return nil
@@ -426,11 +457,23 @@ func (e *Engine) Reload() error {
 	if err := e.app.WriteConfig(); err != nil {
 		return err
 	}
-	if err := e.validateConfig(); err != nil {
-		if oldCfg != nil {
-			_ = writeFileAtomic(e.app.configPath(), oldCfg, 0o600)
+	newHash := fileSHA256(e.app.configPath())
+	e.mu.Lock()
+	sameAsRunning := e.lastCfgHash != "" && e.lastCfgHash == newHash
+	e.mu.Unlock()
+	// 很多设置（UA、密码等）不改变内核配置，不必让内核重新解析 geosite。
+	if sameAsRunning {
+		if err := e.ApplyIptables(); err != nil {
+			e.app.addLog("warning", "刷新转发规则失败："+err.Error())
 		}
-		return err // validateConfig 已经带上「配置校验失败」前缀
+		e.ensureGlobalSelector()
+		e.app.invalidateCoreCache()
+		return nil
+	}
+	// running 标记在内核 API 就绪之前就置位；刚开机/刚重启时立即改设置
+	// 可能拿到 connection refused。短暂等待，避免误报 500。
+	if !e.waitCoreReady(15 * time.Second) {
+		return fmt.Errorf("内核尚未就绪，请稍后重试")
 	}
 	if err := e.app.clash.ReloadConfig(e.app.configPath()); err != nil {
 		if oldCfg != nil {
@@ -439,6 +482,9 @@ func (e *Engine) Reload() error {
 		e.app.addLog("warning", "热重载失败，当前内核继续使用旧配置："+err.Error())
 		return err
 	}
+	e.mu.Lock()
+	e.lastCfgHash = newHash
+	e.mu.Unlock()
 	if err := e.ApplyIptables(); err != nil {
 		e.app.addLog("warning", "重载后刷新转发规则失败："+err.Error())
 	}

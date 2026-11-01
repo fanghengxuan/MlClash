@@ -128,6 +128,17 @@ func (a *App) BuildConfig() (map[string]any, error) {
 			"store-selected": true,
 			"store-fake-ip":  true,
 		},
+		// 对齐 FlClash 的 geodata 设置：内核按需加载 geosite/geoip，
+		// 由面板负责把 geosite.dat 下载到数据目录并校验。
+		"geodata-loader":      "memconservative",
+		"geo-auto-update":     false,
+		"geo-update-interval": 24,
+		"geox-url": map[string]any{
+			"geoip":   geoIPURL,
+			"geosite": geoSiteURLs[0],
+			"mmdb":    geoMMDBURL,
+			"asn":     geoASNURL,
+		},
 	}
 	if s.DNSEnable {
 		cfg["dns"] = buildDNSSection(s)
@@ -210,6 +221,15 @@ func (a *App) BuildConfig() (map[string]any, error) {
 	// 规则
 	var rules []any
 	if s.RulePreset == "cn-direct" {
+		// 域名优先：国内域名解析到海外 CDN IP 时（境外 DoH/ECS 很常见），
+		// 只看 IP 会误判成代理；geosite,cn 按域名先直连，和 FlClash 一致。
+		if a.geoSiteReady() {
+			rules = append(rules, "GEOSITE,cn,DIRECT")
+		}
+		// 可选：country.mmdb 的 GEOIP,CN（默认关闭，用户可在规则页开启）。
+		if s.GeoIPEnable && a.geoIPReady() {
+			rules = append(rules, "GEOIP,CN,DIRECT")
+		}
 		if a.ensureRuleProviderYAML() {
 			cfg["rule-providers"] = map[string]any{
 				"cn-ip": map[string]any{

@@ -248,14 +248,29 @@ func (a *App) ruleScheduler() {
 	t := time.NewTicker(10 * time.Minute)
 	defer t.Stop()
 	for range t.C {
-		if !a.ruleUpdateDue() {
-			continue
+		changed := false
+		if a.ruleUpdateDue() {
+			if _, err := a.UpdateRuleSet(""); err != nil {
+				a.addLog("warn", "自动更新国内 IP 规则失败："+err.Error())
+			} else {
+				changed = true
+			}
 		}
-		if _, err := a.UpdateRuleSet(""); err != nil {
-			a.addLog("warn", "自动更新国内 IP 规则失败："+err.Error())
-			continue
+		if a.geoSiteDue() {
+			if err := a.EnsureGeoSite(true); err != nil {
+				a.addLog("warn", "自动更新国内域名规则失败："+err.Error())
+			} else {
+				changed = true
+			}
 		}
-		if a.engine.Running() {
+		if a.geoIPDue() {
+			if err := a.EnsureGeoIP(true); err != nil {
+				a.addLog("warn", "自动更新 GEOIP 数据库失败："+err.Error())
+			} else {
+				changed = true
+			}
+		}
+		if changed && a.engine.Running() {
 			_ = a.appReload()
 		}
 	}

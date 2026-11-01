@@ -20,7 +20,7 @@
     proxy: ['mode', 'rulePreset', 'redirPort', 'mixedPort', 'allowLan', 'blockQuic', 'sniffer', 'routerSelf', 'lanIf'],
     dns: ['dnsEnable', 'dnsMode', 'dnsListen', 'dnsNameserver', 'dnsFallback', 'dnsFakeIpRange'],
     subscription: ['subUA', 'subUACustom', 'subProxyMode', 'subInsecure', 'subInterval'],
-    ruleset: ['ruleSourcePreset', 'ruleSourceURL', 'ruleAutoUpdate', 'ruleIntervalH'],
+    ruleset: ['ruleSourcePreset', 'ruleSourceURL', 'ruleAutoUpdate', 'ruleIntervalH', 'geoipEnable'],
     autoselect: ['autoIntervalSec', 'autoToleranceMs'],
     schedule: ['autoRestart', 'restartEveryHours', 'restartAt'],
     security: ['autoStart', 'panelPassword']
@@ -100,7 +100,7 @@
     if (sub === 'subscription') return s.subInterval ? '自动 · ' + s.subInterval + ' 小时' : '关闭';
     if (sub === 'ruleset') {
       var hours = s.ruleIntervalH != null ? s.ruleIntervalH : 24;
-      return ruleSourceName(s.ruleSourcePreset) + ' · ' + hours + ' 小时';
+      return ruleSourceName(s.ruleSourcePreset) + ' · ' + hours + ' 小时' + (s.geoipEnable ? ' · GEOIP' : '');
     }
     if (sub === 'autoselect') return (s.autoIntervalSec != null ? s.autoIntervalSec : '—') + ' 秒 / ' +
       (s.autoToleranceMs != null ? s.autoToleranceMs : '—') + ' ms';
@@ -735,14 +735,25 @@
   function rulesetMetaRows() {
     var rs = state().ruleset;
     var meta = (rs && rs.meta) || null;
-    if (!meta) {
-      return readonlyRow('条数', '—') + readonlyRow('大小', '—') +
-        readonlyRow('更新时间', '—') + readonlyRow('来源', '—');
-    }
-    return readonlyRow('条数', meta.count != null ? Number(meta.count) + ' 条' : '—') +
-      readonlyRow('大小', meta.bytes != null ? MM.fmt.bytes(meta.bytes) : '—') +
-      readonlyRow('更新时间', meta.updatedAt ? MM.fmt.time(meta.updatedAt) : '—') +
-      readonlyRow('来源', meta.source || '—');
+    var geo = (rs && rs.geosite) || null;
+    var ipRows = !meta
+      ? readonlyRow('IP 条数', '—') + readonlyRow('IP 大小', '—') +
+        readonlyRow('IP 更新时间', '—') + readonlyRow('IP 来源', '—')
+      : readonlyRow('IP 条数', meta.count != null ? Number(meta.count) + ' 条' : '—') +
+        readonlyRow('IP 大小', meta.bytes != null ? MM.fmt.bytes(meta.bytes) : '—') +
+        readonlyRow('IP 更新时间', meta.updatedAt ? MM.fmt.time(meta.updatedAt) : '—') +
+        readonlyRow('IP 来源', meta.source || '—');
+    var geoState = geo && geo.ready ? ((geo.count ? Number(geo.count) : 0) + ' 条域名')
+      : (geo && geo.present ? '未就绪' : '未下载');
+    var geoip = (rs && rs.geoip) || null;
+    var geoipState = geoip && geoip.ready
+      ? ('已下载' + (geoip.size ? ' · ' + MM.fmt.bytes(geoip.size) : ''))
+      : (geoip && geoip.present ? '未就绪' : '未下载');
+    return ipRows +
+      readonlyRow('域名规则', geoState, geo && geo.ready ? 'ok' : 'warn') +
+      readonlyRow('域名更新时间', geo && geo.updatedAt ? MM.fmt.time(geo.updatedAt) : '—') +
+      readonlyRow('GEOIP 数据库', geoipState, geoip && geoip.ready ? 'ok' : '') +
+      readonlyRow('GEOIP 更新时间', geoip && geoip.updatedAt ? MM.fmt.time(geoip.updatedAt) : '—');
   }
   function renderRuleset(container) {
     container.innerHTML =
@@ -756,8 +767,11 @@
         switchRow('ruleAutoUpdate', '自动更新') +
         inputRow('ruleIntervalH', '更新间隔（小时）', { type: 'number', min: 1, max: 720 }) +
         actionRow('ruleupdate', '立即更新', '下载、校验 CIDR 并热重载内核', 'tonal')) +
+      groupCard('IP 地理规则（可选）',
+        switchRow('geoipEnable', 'GEOIP,CN 直连', '开启后下载 country.mmdb（约 7.6MB），按 IP 判定国内直连；默认关闭') +
+        noteBlock('开启后会在后台下载数据库，完成后自动热重载；存储紧张时建议保持关闭，cn-ip 已能兜底。')) +
       groupCard('说明',
-        noteBlock('规则页右上角的「规则源」入口会回到这里；修改来源并保存后会立即重新下载。'));
+        noteBlock('「国内直连」先按域名匹配 GEOSITE,cn，再用 cn-ip CIDR 兜底；开启 GEOIP 时中间再加 GEOIP,CN。修改来源并保存后会立即重新下载。'));
     bindPage(container, {
       rerenderOn: { ruleSourcePreset: 1 },
       actions: { ruleupdate: updateRuleSetNow }

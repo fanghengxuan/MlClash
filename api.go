@@ -74,6 +74,7 @@ func publicSettings(s Settings) map[string]any {
 		"ruleSourceURL":    s.RuleSourceURL,
 		"ruleAutoUpdate":   s.RuleAutoUpdate,
 		"ruleIntervalH":    s.RuleIntervalH,
+		"geoipEnable":      s.GeoIPEnable,
 	}
 }
 
@@ -259,11 +260,23 @@ func (a *App) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 				a.addLog("warning", "规则来源已切换，但下载失败："+rerr.Error())
 				return
 			}
+			// 切到国内直连时顺带补齐域名/可选 GEOIP 规则；失败只记日志，IP 规则仍可用。
+			_ = a.EnsureGeoSite(false)
+			if s.GeoIPEnable {
+				_ = a.EnsureGeoIP(false)
+			}
 			a.addLog("info", "规则来源已切换并重新下载完成")
 			if a.engine.Running() {
 				_ = a.engine.Reload()
 			}
 		}()
+	}
+	// 从 proxy-all 切回 cn-direct 时也要补域名规则。
+	if s.RulePreset == "cn-direct" && !a.geoSiteReady() {
+		a.ensureGeoSiteAsync()
+	}
+	if s.GeoIPEnable && !a.geoIPReady() {
+		a.ensureGeoIPAsync()
 	}
 	if err != nil {
 		writeErr(w, 500, "保存设置失败："+err.Error())
@@ -284,12 +297,12 @@ func (a *App) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	// 同步应用：设置里的 mode / 端口 / 规则集都会影响运行中的内核，
 	// 异步重载会让界面读到“设置已保存但其实没生效”的假象。
 	if a.engine.Running() {
+		// Reload 内部会应用 iptables（配置未变化时也走这条分支），不要再重复重建。
 		if err := a.engine.Reload(); err != nil {
 			writeJSON(w, 500, map[string]any{"ok": false, "error": "设置已保存，但应用到内核失败：" + err.Error(),
 				"settings": publicSettings(s)})
 			return
 		}
-		_ = a.engine.ApplyIptables()
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "settings": publicSettings(s)})
 }
@@ -1460,6 +1473,8 @@ func (a *App) handleRuleSetInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok":        true,
 		"meta":      a.loadRuleMeta(),
+		"geosite":   a.geoSiteStatus(),
+		"geoip":     a.geoIPStatus(),
 		"preset":    presetID,
 		"presets":   presets,
 		"customURL": custom,
@@ -1493,10 +1508,37 @@ func (a *App) handleRuleSetUpdate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 502, err.Error())
 		return
 	}
+	// 域名规则与 IP 规则一起更新；域名下载失败不影响 IP 规则结果。
+	a.mu.RLock()
+	rulePreset := a.settings.RulePreset
+	a.mu.RUnlock()
+	a.mu.RLock()
+	geoIPEnabled := a.settings.GeoIPEnable
+	a.mu.RUnlock()
+	geoErr, geoIPErr := "", ""
+	if rulePreset == "cn-direct" || body.URL == "" {
+		if err := a.EnsureGeoSite(true); err != nil {
+			geoErr = err.Error()
+			a.addLog("warning", "域名规则更新失败："+err.Error())
+		}
+	}
+	if geoIPEnabled {
+		if err := a.EnsureGeoIP(true); err != nil {
+			geoIPErr = err.Error()
+			a.addLog("warning", "GEOIP 数据库更新失败："+err.Error())
+		}
+	}
 	if a.engine.Running() {
 		_ = a.appReload()
 	}
-	writeJSON(w, 200, map[string]any{"ok": true, "meta": meta})
+	resp := map[string]any{"ok": true, "meta": meta, "geosite": a.geoSiteStatus(), "geoip": a.geoIPStatus()}
+	if geoErr != "" {
+		resp["geositeError"] = geoErr
+	}
+	if geoIPErr != "" {
+		resp["geoipError"] = geoIPErr
+	}
+	writeJSON(w, 200, resp)
 }
 
 // handleStorage 返回数据目录占用明细。

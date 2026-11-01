@@ -381,4 +381,4 @@ MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
 
 ## 更新记录
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前版本 **2.0.5**：面板重构 + 稳定性与 Merlin 安装修复，并修复真机设置项测试发现的 8 类问题。
+见 [CHANGELOG.md](CHANGELOG.md)。当前版本 **2.0.6**：面板重构 + 稳定性与 Merlin 安装修复，并修复真机设置项测试发现的 8 类问题。
