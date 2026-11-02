@@ -20,7 +20,7 @@
     proxy: ['mode', 'rulePreset', 'redirPort', 'mixedPort', 'allowLan', 'blockQuic', 'sniffer', 'routerSelf', 'lanIf'],
     dns: ['dnsEnable', 'dnsMode', 'dnsListen', 'dnsNameserver', 'dnsFallback', 'dnsFakeIpRange'],
     subscription: ['subUA', 'subUACustom', 'subProxyMode', 'subInsecure', 'subInterval'],
-    ruleset: ['ruleSourcePreset', 'ruleSourceURL', 'ruleAutoUpdate', 'ruleIntervalH', 'geoipEnable'],
+    ruleset: ['ruleSourcePreset', 'ruleSourceURL', 'ruleAutoUpdate', 'ruleIntervalH', 'geoipEnable', 'adBlock'],
     autoselect: ['autoIntervalSec', 'autoToleranceMs'],
     schedule: ['autoRestart', 'restartEveryHours', 'restartAt'],
     security: ['autoStart', 'panelPassword']
@@ -100,7 +100,8 @@
     if (sub === 'subscription') return s.subInterval ? '自动 · ' + s.subInterval + ' 小时' : '关闭';
     if (sub === 'ruleset') {
       var hours = s.ruleIntervalH != null ? s.ruleIntervalH : 24;
-      return ruleSourceName(s.ruleSourcePreset) + ' · ' + hours + ' 小时' + (s.geoipEnable ? ' · GEOIP' : '');
+      return ruleSourceName(s.ruleSourcePreset) + ' · ' + hours + ' 小时' +
+        (s.geoipEnable ? ' · GEOIP' : '') + (s.adBlock ? ' · 去广告' : '');
     }
     if (sub === 'autoselect') return (s.autoIntervalSec != null ? s.autoIntervalSec : '—') + ' 秒 / ' +
       (s.autoToleranceMs != null ? s.autoToleranceMs : '—') + ' ms';
@@ -770,6 +771,10 @@
       groupCard('IP 地理规则（可选）',
         switchRow('geoipEnable', 'GEOIP,CN 直连', '开启后下载 country.mmdb（约 7.6MB），按 IP 判定国内直连；默认关闭') +
         noteBlock('开启后会在后台下载数据库，完成后自动热重载；存储紧张时建议保持关闭，cn-ip 已能兜底。')) +
+      groupCard('去广告',
+        switchRow('adBlock', '拦截广告与统计域名',
+          '使用 GEOSITE,category-ads-all 拦截常见广告/统计域名；仅在规则模式生效') +
+        noteBlock('开启后拦截规则排在所有规则最前，避免国内广告域被直连规则放行；无法拦截第一方广告、视频贴片和 YouTube 广告。')) +
       groupCard('说明',
         noteBlock('「国内直连」先按域名匹配 GEOSITE,cn，再用 cn-ip CIDR 兜底；开启 GEOIP 时中间再加 GEOIP,CN。修改来源并保存后会立即重新下载。'));
     bindPage(container, {

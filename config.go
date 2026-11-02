@@ -220,6 +220,11 @@ func (a *App) BuildConfig() (map[string]any, error) {
 
 	// 规则
 	var rules []any
+	// 去广告必须排在最前：广告域命中 REJECT 后再走直连/代理判断。
+	// 只在规则模式生效；geosite.dat 未就绪时先不加，下载完成后会自动热重载。
+	if s.Mode == "rule" && s.AdBlock && a.geoSiteReady() {
+		rules = append(rules, "GEOSITE,category-ads-all,REJECT")
+	}
 	if s.RulePreset == "cn-direct" {
 		// 域名优先：国内域名解析到海外 CDN IP 时（境外 DoH/ECS 很常见），
 		// 只看 IP 会误判成代理；geosite,cn 按域名先直连，和 FlClash 一致。

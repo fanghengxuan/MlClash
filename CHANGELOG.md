@@ -1,5 +1,18 @@
 # 更新记录
 
+## 2.0.7（2026-11-02）
+
+- **新增可选「去广告」开关**（默认关闭，仅规则模式生效）：开启后在规则最前插入
+  `GEOSITE,category-ads-all,REJECT`，按域名拦截常见广告/统计域名；关闭后配置与 2.0.6 完全一致
+- 复用现有 `geosite.dat` 的 `category-ads-all`（905 条域名），无额外下载、无额外存储；
+  geosite 未就绪时先不写规则，后台补齐后自动热重载
+- 设置 → 国内 IP 规则新增开关、摘要与说明；`/api/settings` 暴露 `adBlock`
+- 规则顺序保证去广告在最前，避免国内广告域被 `GEOSITE,cn,DIRECT` 放行
+- 真机验证：`ad-srv.net` 立即 REJECT；baidu/bilibili 直连、Google 代理不受影响；
+  UI 开关保存/关闭可即时热重载
+- 边界：只做域名级拦截，第一方广告、视频贴片、YouTube、ECH/无 SNI 不覆盖；
+  global/direct 模式不生效
+
 ## 2.0.6（2026-11-01）
 
 - **规则模式新增域名优先匹配，对齐 FlClash 的 geodata 做法**：

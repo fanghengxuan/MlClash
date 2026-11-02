@@ -59,6 +59,7 @@
     "panelPasswordSet": false,   // 只读；是否已设置密码（PUT 仍用 panelPassword 字段）
     "rulePreset": "cn-direct",   // cn-direct | proxy-all
     "geoipEnable": false,        // 可选：GEOIP,CN 直连（额外下载 country.mmdb 约 7.6MB）
+    "adBlock": false,            // 可选：GEOSITE,category-ads-all 去广告（仅规则模式生效）
     "sniffer": true
   }
 }

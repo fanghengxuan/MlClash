@@ -75,6 +75,7 @@ func publicSettings(s Settings) map[string]any {
 		"ruleAutoUpdate":   s.RuleAutoUpdate,
 		"ruleIntervalH":    s.RuleIntervalH,
 		"geoipEnable":      s.GeoIPEnable,
+		"adBlock":          s.AdBlock,
 	}
 }
 
@@ -271,8 +272,8 @@ func (a *App) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 	}
-	// 从 proxy-all 切回 cn-direct 时也要补域名规则。
-	if s.RulePreset == "cn-direct" && !a.geoSiteReady() {
+	// 从 proxy-all 切回 cn-direct 时也要补域名规则；开启去广告同样依赖 geosite.dat。
+	if (s.RulePreset == "cn-direct" || s.AdBlock) && !a.geoSiteReady() {
 		a.ensureGeoSiteAsync()
 	}
 	if s.GeoIPEnable && !a.geoIPReady() {
