@@ -1,13 +1,14 @@
 #!/bin/sh
-# mihomo-merlin 安装前清理 / 空间自检
+# MlClash 安装前清理 / 空间自检
 #
 # 用途：软件中心在「解压前」就会检查 jffs 剩余空间，空间不够时它会直接退出，
 # 插件的 install.sh 根本没有机会运行，所以清理由这个独立脚本完成。
+# 同时兼容清理 2.x 的 mihomo-merlin 残留。
 #
 # 用法（路由器上，用 ssh）：
-#   sh mihomo-cleanup.sh            # 只检查并列出可清理的东西（不动手）
-#   sh mihomo-cleanup.sh --yes      # 真的删除
-#   sh mihomo-cleanup.sh --yes --need 16692    # 删完顺便判断够不够装（KB）
+#   sh mlclash-cleanup.sh            # 只检查并列出可清理的东西（不动手）
+#   sh mlclash-cleanup.sh --yes      # 真的删除
+#   sh mlclash-cleanup.sh --yes --need 16692    # 删完顺便判断够不够装（KB）
 #
 # 安全：只处理本插件自己的路径，绝不删别的目录。
 
@@ -37,17 +38,25 @@ kb_of() { [ -e "$1" ] && du -sk "$1" 2>/dev/null | awk '{print $1}' || echo 0; }
 FREE_KB=$(df -k /jffs 2>/dev/null | awk 'NR==2 {print $4}')
 [ -n "$FREE_KB" ] || FREE_KB=0
 
-DATA=/koolshare/mihomo
-BIN1=/koolshare/bin/mihomo
-BIN2=/koolshare/bin/mihomo-panel
-WEB=/koolshare/webs/Module_mihomo.asp
-ICON=/koolshare/res/icon-mihomo.png
-CTL=/koolshare/scripts/mihomo_ctl.sh
-UNINST=/koolshare/scripts/uninstall_mihomo.sh
-S99=/koolshare/init.d/S99mihomo.sh
-N99=/koolshare/init.d/N99mihomo.sh
+DATA=/koolshare/mlclash
+OLD_DATA=/koolshare/mihomo
+BIN1=/koolshare/bin/mlclash-panel
+BIN2=/koolshare/bin/mihomo
+OLD_BIN1=/koolshare/bin/mihomo-panel
+WEB=/koolshare/webs/Module_mlclash.asp
+OLD_WEB=/koolshare/webs/Module_mihomo.asp
+ICON=/koolshare/res/icon-mlclash.png
+OLD_ICON=/koolshare/res/icon-mihomo.png
+CTL=/koolshare/scripts/mlclash_ctl.sh
+OLD_CTL=/koolshare/scripts/mihomo_ctl.sh
+UNINST=/koolshare/scripts/uninstall_mlclash.sh
+OLD_UNINST=/koolshare/scripts/uninstall_mihomo.sh
+S99=/koolshare/init.d/S99mlclash.sh
+N99=/koolshare/init.d/N99mlclash.sh
+OLD_S99=/koolshare/init.d/S99mihomo.sh
+OLD_N99=/koolshare/init.d/N99mihomo.sh
 
-say "==== mihomo-merlin 安装前清理 ===="
+say "==== MlClash 安装前清理 ===="
 say "jffs 剩余：${FREE_KB} KB"
 
 TOTAL=0
@@ -71,25 +80,34 @@ report() { # name path
 say ""
 say "检查本插件的旧版本残留："
 report "数据目录（订阅/节点/规则/内核备份/日志）" "$DATA"
-report "内核" "$BIN1"
-report "面板" "$BIN2"
+report "旧数据目录（2.x）" "$OLD_DATA"
+report "面板" "$BIN1"
+report "内核" "$BIN2"
+report "旧面板（2.x）" "$OLD_BIN1"
 report "菜单页" "$WEB"
+report "旧菜单页（2.x）" "$OLD_WEB"
 report "图标" "$ICON"
+report "旧图标（2.x）" "$OLD_ICON"
 report "控制脚本" "$CTL"
+report "旧控制脚本（2.x）" "$OLD_CTL"
 report "卸载脚本" "$UNINST"
+report "旧卸载脚本（2.x）" "$OLD_UNINST"
 report "自启软链(S99)" "$S99"
 report "自启软链(N99)" "$N99"
+report "旧自启软链(S99)" "$OLD_S99"
+report "旧自启软链(N99)" "$OLD_N99"
 # 老版本写在 /tmp 的日志（重启会自己没，但省空间也算）
-for f in /tmp/mihomo-panel.log /tmp/mihomo.log /tmp/mihomo_*.tar.gz /tmp/mihomo; do
+for f in /tmp/mlclash-panel.log /tmp/mihomo-panel.log /tmp/mlclash.log /tmp/mihomo.log /tmp/mihomo_*.tar.gz /tmp/mlclash /tmp/mihomo; do
 	report "临时文件" "$f"
 done
 
 # 内核备份是老版本最容易堆积的地方（每份约 7.9MB）
-if [ -d "$DATA/kernel" ]; then
+for kd in "$DATA/kernel" "$OLD_DATA/kernel"; do
+	[ -d "$kd" ] || continue
 	say ""
-	say "内核备份明细："
-	ls -l "$DATA/kernel" 2>/dev/null | awk 'NR>1 {printf "  %s  %s 字节\n", $9, $5}'
-fi
+	say "内核备份明细（${kd}）："
+	ls -l "$kd" 2>/dev/null | awk 'NR>1 {printf "  %s  %s 字节\n", $9, $5}'
+done
 
 say ""
 if [ "$FOUND" = "0" ]; then
@@ -113,7 +131,7 @@ if [ "$NEED_KB" -gt 0 ]; then
 		exit 0
 	else
 		say "❌ 空间仍然不够：需要 ${NEED_KB} KB，当前只有 ${FREE_AFTER} KB"
-		say "   建议：改用 mihomo_1.7.5_armv7_lite.tar.gz（解压约 9740KB），或清理其它插件/启用 USB2JFFS 扩容"
+		say "   建议：改用不带内核的 MlClash 安装包，或清理其它插件/启用 USB2JFFS 扩容"
 		exit 1
 	fi
 fi

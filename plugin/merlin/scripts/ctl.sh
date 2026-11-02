@@ -1,20 +1,22 @@
 #!/bin/sh
-# mihomo-merlin 控制脚本（Asuswrt-Merlin / gnuton，无软件中心）
+# MlClash 控制脚本（Asuswrt-Merlin / gnuton，无软件中心）
 # 用法：ctl.sh {start|stop|restart|status|prepare|reapply}
 #
 # 面板自己负责内核启停与 iptables；本脚本只做进程托管和兜底清理。
-# MM_ROOT 仅用于测试（假根目录），路由器上不要设置。
+# MLCLASH_ROOT 仅用于测试（假根目录），路由器上不要设置。
 
-ROOT=${MM_ROOT:-}
-BASE=$ROOT/jffs/mihomo-merlin
+ROOT=${MLCLASH_ROOT:-}
+BASE=$ROOT/jffs/mlclash
 BIN=$BASE/bin
 DATA=$BASE/data
 LOG=$DATA/logs/panel.log
 PID=$DATA/panel.pid
 WATCH=$DATA/panel-watchdog.pid
-PORT=${MM_PORT:-9380}
-PANEL=$BIN/mihomo-panel
+PORT=${MLCLASH_PORT:-9380}
+PANEL=$BIN/mlclash-panel
 CORE=$BIN/mihomo
+RT=${MLCLASH_RUNTIME_DIR:-/tmp/mlclash}
+OLD_RT=${MLCLASH_OLD_RUNTIME_DIR:-/tmp/mihomo}
 
 mm_log() { echo "【$(date '+%Y-%m-%d %H:%M:%S')】: $*"; }
 
@@ -36,19 +38,26 @@ panel_running() {
 
 # 日志与内核备份放 /tmp，避免在 jffs 上占 10MB 级别的空间。
 # 旧目录会先复制到 /tmp 再删除；复制失败则保留原目录，不丢数据。
+# 同时把 2.x 的 /tmp/mihomo 迁移到 /tmp/mlclash。
 ensure_runtime_dirs() {
-	mkdir -p /tmp/mihomo/logs /tmp/mihomo/kernel "$DATA/rules" "$DATA/providers"
+	mkdir -p "$RT/logs" "$RT/kernel" "$DATA/rules" "$DATA/providers"
 	for d in logs kernel; do
+		if [ -d "$OLD_RT/$d" ] && [ ! -e "$RT/$d" ]; then
+			if ! mv "$OLD_RT/$d" "$RT/$d" 2>/dev/null; then
+				cp -R "$OLD_RT/$d/." "$RT/$d/" 2>/dev/null && rm -rf "$OLD_RT/$d"
+			fi
+		fi
 		if [ -e "$DATA/$d" ] && [ ! -L "$DATA/$d" ]; then
-			if cp -R "$DATA/$d/." "/tmp/mihomo/$d/" 2>/dev/null; then
+			if cp -R "$DATA/$d/." "$RT/$d/" 2>/dev/null; then
 				rm -rf "$DATA/$d"
 			else
 				mm_log "警告：$DATA/$d 迁移到 /tmp 失败，继续使用 jffs"
 				continue
 			fi
 		fi
-		ln -sfn "/tmp/mihomo/$d" "$DATA/$d"
+		ln -sfn "$RT/$d" "$DATA/$d"
 	done
+	rmdir "$OLD_RT" 2>/dev/null
 }
 
 find_pid_by_path() {
@@ -56,7 +65,7 @@ find_pid_by_path() {
 	for d in /proc/[0-9]*; do
 		[ -r "$d/cmdline" ] || continue
 		cmd=$(tr '\0' ' ' <"$d/cmdline" 2>/dev/null)
-		# 必须匹配完整路径 + 空格，避免把 mihomo-panel 当成 mihomo
+		# 必须匹配完整路径 + 空格，避免把 mlclash-panel 当成 mihomo
 		case "$cmd" in
 			"$want" | "$want "*) echo "${d#/proc/}"; return 0 ;;
 		esac
@@ -71,9 +80,9 @@ start_panel() {
 	fi
 	rm -f "$PID"
 	if command -v nohup >/dev/null 2>&1; then
-		MM_MIHOMO="$CORE" nohup "$PANEL" -listen ":$PORT" -data "$DATA" >>"$LOG" 2>&1 &
+		MLCLASH_MIHOMO="$CORE" nohup "$PANEL" -listen ":$PORT" -data "$DATA" >>"$LOG" 2>&1 &
 	else
-		MM_MIHOMO="$CORE" "$PANEL" -listen ":$PORT" -data "$DATA" >>"$LOG" 2>&1 &
+		MLCLASH_MIHOMO="$CORE" "$PANEL" -listen ":$PORT" -data "$DATA" >>"$LOG" 2>&1 &
 	fi
 	echo $! >"$PID"
 	sleep 1
@@ -106,20 +115,25 @@ clear_iptables() {
 	[ -n "$ipt" ] || return 0
 	lanif=$(nvram get lan_ifname 2>/dev/null)
 	[ -n "$lanif" ] || lanif=br0
-	i=0
-	while [ "$i" -lt 5 ]; do
-		"$ipt" -t nat -D PREROUTING -i "$lanif" -j MIHOMO 2>/dev/null || break
-		i=$((i + 1))
+	# 同时清理 3.0 的 MLCLASH* 与 2.x 的 MIHOMO* 链
+	for chain in MLCLASH MIHOMO; do
+		i=0
+		while [ "$i" -lt 5 ]; do
+			"$ipt" -t nat -D PREROUTING -i "$lanif" -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		"$ipt" -t nat -F "$chain" 2>/dev/null
+		"$ipt" -t nat -X "$chain" 2>/dev/null
 	done
-	i=0
-	while [ "$i" -lt 5 ]; do
-		"$ipt" -t nat -D OUTPUT -j MIHOMO_OUT 2>/dev/null || break
-		i=$((i + 1))
+	for chain in MLCLASH_OUT MIHOMO_OUT; do
+		i=0
+		while [ "$i" -lt 5 ]; do
+			"$ipt" -t nat -D OUTPUT -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		"$ipt" -t nat -F "$chain" 2>/dev/null
+		"$ipt" -t nat -X "$chain" 2>/dev/null
 	done
-	"$ipt" -t nat -F MIHOMO 2>/dev/null
-	"$ipt" -t nat -X MIHOMO 2>/dev/null
-	"$ipt" -t nat -F MIHOMO_OUT 2>/dev/null
-	"$ipt" -t nat -X MIHOMO_OUT 2>/dev/null
 	"$ipt" -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null
 	i=0
 	while [ "$i" -lt 3 ]; do

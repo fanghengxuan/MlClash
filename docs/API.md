@@ -1,4 +1,4 @@
-# mihomo-merlin 面板 API 契约 v1
+# MlClash 面板 API 契约 v1
 
 面板由一个静态前端（`web/`，被 Go `embed` 打包）和一个 Go HTTP 服务组成。
 前端只与下面这些 HTTP 接口通信，**不得**直接访问 mihomo 的 9090 API（浏览器在 LAN 侧，`external-controller` 只监听 127.0.0.1）。
@@ -356,7 +356,7 @@ SSE 断线由前端自动重连（EventSource 自带）。
 `subs`（含订阅地址与令牌）、`providers`（订阅 id → 节点文件内容）、`rulesMeta`。
 
 ### POST /api/restore
-请求体为上面的备份 JSON（≤16MB）。校验 `kind == "mihomo-merlin-backup"` 且 `format <= 1`；
+请求体为上面的备份 JSON（≤16MB）。校验 `kind == "mlclash-backup"`（兼容旧版 `mihomo-merlin-backup`）且 `format <= 1`；
 设置以默认值起步再覆盖备份里出现的字段（老备份缺字段不会把 allowLan/autoStart 清成 false）；
 订阅与节点文件一并写回，内核运行中会热重载。
 

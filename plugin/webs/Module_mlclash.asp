@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <script>
 /* 软件中心离线安装时通过这些变量识别插件与平台，格式与 fancyss 保持一致 */
-var PKG_NAME = "mihomo";
+var PKG_NAME = "mlclash";
 var PKG_ARCH = "hnd";     /* axhnd.675x / armv7l，内核 4.1 */
 var PKG_TYPE = "full";
 var PKG_EXTA = "";
-var PKG_VERSION = "2.0.7";
+var PKG_VERSION = "3.0.0";
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mihomo 魔方</title>
+<title>MlClash</title>
 <style>
   html,body{margin:0;height:100%;background:#0f1216;color:#e6edf3;
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
@@ -31,12 +31,12 @@ var PKG_VERSION = "2.0.7";
 <div class="wrap">
   <div class="bar">
     <span class="dot" id="dot"></span>
-    <img src="/res/icon-mihomo.png" alt="" width="20" height="20" style="border-radius:6px;vertical-align:-4px"><strong>Mihomo 魔方</strong>
+    <img src="/res/icon-mlclash.png" alt="" width="20" height="20" style="border-radius:6px;vertical-align:-4px"><strong>MlClash</strong>
     <span id="addr" style="color:#8b98a9"></span>
     <a class="btn" id="open" target="_blank" rel="noopener">新窗口打开 ↗</a>
   </div>
   <div id="tip">管理面板运行在本机 9380 端口；如果下方长时间空白，请检查「面板是否启动」。</div>
-  <iframe id="fr" src="about:blank" title="mihomo 面板"></iframe>
+  <iframe id="fr" src="about:blank" title="MlClash 面板"></iframe>
 </div>
 <script>
   // 面板与软件中心同主机不同端口，这里用当前访问的主机名拼出面板地址

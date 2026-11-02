@@ -1,5 +1,23 @@
 # 更新记录
 
+## 3.0.0（2026-11-02）
+
+**全量改名：mihomo-merlin → MlClash**（3.0.0 是破坏性版本，安装器会自动迁移）
+
+- 安装目录：`/jffs/mihomo-merlin` → `/jffs/mlclash`；koolshare 数据目录
+  `/koolshare/mihomo` → `/koolshare/mlclash`
+- 面板二进制：`mihomo-panel` → `mlclash-panel`；koolshare 控制脚本
+  `mihomo_ctl.sh` → `mlclash_ctl.sh`；模块页 `Module_mlclash.asp`、图标 `icon-mlclash.png`
+- iptables 链：`MIHOMO*` → `MLCLASH*`；启动/安装/卸载会清理旧链，避免升级后重复劫持
+- 运行时目录：`/tmp/mihomo` → `/tmp/mlclash`；安装时迁移旧日志与内核备份
+- 服务钩子标记：`mihomo-merlin` → `mlclash`；安装器会清除旧标记，避免重复启动
+- 备份标识：`mlclash-backup`；恢复接口继续兼容 2.x 的 `mihomo-merlin-backup`
+- 安装包：`MlClash_<版本>_armv7_{koolshare,merlin}.tar.gz`；解包目录分别为
+  `mlclash/`、`MlClash/`
+- **升级迁移**：Merlin/koolshare 安装器会停止旧版、迁移 data（订阅/设置/规则/GEO 文件）、
+  清理旧二进制/菜单/软链/钩子；失败时回滚 data 与旧二进制
+- 去广告、GEO 规则、订阅、节点、设置全部保留；旧备份仍可导入
+
 ## 2.0.7（2026-11-02）
 
 - **新增可选「去广告」开关**（默认关闭，仅规则模式生效）：开启后在规则最前插入

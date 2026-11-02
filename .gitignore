@@ -3,8 +3,8 @@ dist/
 *.tar.gz
 *.upx
 panel
-mihomo-panel
-mihomo-merlin
+mlclash-panel
+MlClash
 
 # 本地缓存（内核下载、工具链）
 .cache/

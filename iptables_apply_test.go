@@ -20,15 +20,20 @@ func TestIsLoopback(t *testing.T) {
 	}
 }
 
-func TestParseMihomoPreroutingIfaces(t *testing.T) {
+func TestParsePreroutingIfaces(t *testing.T) {
 	out := `-P PREROUTING ACCEPT
--A PREROUTING -i br0 -j MIHOMO
--A PREROUTING -i br1 -j MIHOMO
+-A PREROUTING -i br0 -j MLCLASH
+-A PREROUTING -i br1 -j MLCLASH
+-A PREROUTING -i br2 -j MIHOMO
 -A PREROUTING -d 192.168.1.2/32 -j VSERVER
 -A PREROUTING -i eth0 -j OTHER`
-	got := parseMihomoPreroutingIfaces(out)
+	got := parsePreroutingIfaces(out, natChain)
 	if len(got) != 2 || got[0] != "br0" || got[1] != "br1" {
-		t.Fatalf("parseMihomoPreroutingIfaces = %v, want [br0 br1]", got)
+		t.Fatalf("parsePreroutingIfaces(MLCLASH) = %v, want [br0 br1]", got)
+	}
+	legacy := parsePreroutingIfaces(out, legacyNatChain)
+	if len(legacy) != 1 || legacy[0] != "br2" {
+		t.Fatalf("parsePreroutingIfaces(MIHOMO) = %v, want [br2]", legacy)
 	}
 }
 

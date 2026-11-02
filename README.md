@@ -1,11 +1,14 @@
-# mihomo-merlin
+# MlClash
 
-[![ci](https://github.com/fanghengxuan/mihomo-merlin/actions/workflows/ci.yml/badge.svg)](https://github.com/fanghengxuan/mihomo-merlin/actions/workflows/ci.yml)
+[![ci](https://github.com/fanghengxuan/MlClash/actions/workflows/ci.yml/badge.svg)](https://github.com/fanghengxuan/MlClash/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![release](https://img.shields.io/github/v/release/fanghengxuan/mihomo-merlin)](https://github.com/fanghengxuan/mihomo-merlin/releases)
+[![release](https://img.shields.io/github/v/release/fanghengxuan/MlClash)](https://github.com/fanghengxuan/MlClash/releases)
 
 **给华硕梅林路由器用的 mihomo 代理插件**：内核用 [mihomo](https://github.com/MetaCubeX/mihomo)，
 自带一个 FlClash 风格的 Web 面板。支持两种固件形态：
+
+> **3.0.0 起由 mihomo-merlin 更名为 MlClash**。安装路径迁移到 `/jffs/mlclash`
+> （koolshare 为 `/koolshare/mlclash`），安装器会自动迁移旧版本的数据、订阅与钩子。
 
 - **Asuswrt-Merlin / gnuton（推荐）**：原生安装包，装到 `/jffs`，不需要软件中心
 - **koolshare / SWRT**：提供软件中心离线安装包
@@ -30,21 +33,21 @@
 
 **Asuswrt-Merlin / gnuton：**
 
-1. 到 [Releases](https://github.com/fanghengxuan/mihomo-merlin/releases) 下载 `mihomo-merlin_<版本>_armv7_merlin.tar.gz`
+1. 到 [Releases](https://github.com/fanghengxuan/MlClash/releases) 下载 `MlClash_<版本>_armv7_merlin.tar.gz`
 2. 开启 **Administration → System → Enable JFFS custom scripts and configs**
 3. `ssh` 上传并安装：
 
    ```sh
-   cd /tmp && tar -xzf mihomo-merlin_<版本>_armv7_merlin.tar.gz
-   sh /tmp/mihomo-merlin/install.sh
+   cd /tmp && tar -xzf MlClash_<版本>_armv7_merlin.tar.gz
+   sh /tmp/MlClash/install.sh
    ```
 
 4. 浏览器打开 `http://<路由器IP>:9380`
 5. 「订阅」→「添加订阅」→ 粘贴机场链接 →「节点」选择分组与节点 →「概览」点电源按钮启动
 
-> 面板重启：`/jffs/mihomo-merlin/ctl.sh restart`；日志在 `/tmp/mihomo/logs/panel.log`。
+> 面板重启：`/jffs/mlclash/ctl.sh restart`；日志在 `/tmp/mlclash/logs/panel.log`。
 
-**koolshare / SWRT 软件中心**：下载 `mihomo-merlin_<版本>_armv7_koolshare.tar.gz`，在软件中心离线安装即可，
+**koolshare / SWRT 软件中心**：下载 `MlClash_<版本>_armv7_koolshare.tar.gz`，在软件中心离线安装即可，
 详见 §3.2。
 
 > 参与开发或反馈问题见 [CONTRIBUTING.md](CONTRIBUTING.md)。
@@ -108,7 +111,7 @@
 ┌──────────────────────────── 路由器 ────────────────────────────┐
 │                                                                │
 │  <安装目录>/bin/mihomo            mihomo 内核（armv7 静态）      │
-│  <安装目录>/bin/mihomo-panel      Go 面板：订阅/配置/进程/规则   │
+│  <安装目录>/bin/mlclash-panel      Go 面板：订阅/配置/进程/规则   │
 │  <数据目录>/                       设置 / 订阅 / 节点 / 规则      │
 │    ├── settings.json              设置                           │
 │    ├── subs.json                  订阅列表 + 流量信息            │
@@ -125,9 +128,9 @@
 - **mihomo**：armv7 静态构建，不依赖路由器 libc。当前包内是精简版（约 7.9 MB），
   构建标签 `with_low_memory,no_fake_tcp,no_tailscale,no_easytier,no_zerotier`，去掉 gvisor 与组网模块。
   详见 [docs/kernel.md](docs/kernel.md)。
-- **mihomo-panel**：自包含 Go 程序，负责订阅抓取/解析、配置生成、内核启停、iptables 维护、
+- **mlclash-panel**：自包含 Go 程序，负责订阅抓取/解析、配置生成、内核启停、iptables 维护、
   REST API，并把 `web/**` 嵌入二进制。正常构建约 8.6 MB；`PANEL_UPX=1` 可压到约 2.4 MB。
-- **安装位置**：Merlin 为 `/jffs/mihomo-merlin`（数据在 `data/`）；koolshare 为 `/koolshare`
+- **安装位置**：Merlin 为 `/jffs/mlclash`（数据在 `data/`）；koolshare 为 `/koolshare`
   （程序在 `bin/`，数据在 `mihomo/`）。
 - **自启动**：Merlin 用 `/jffs/scripts/services-start`、`services-stop`、`nat-start`；
   koolshare 用 `init.d/S99·N99` 与软件中心菜单。
@@ -136,24 +139,24 @@
 
 | 固件 | 安装包 | 方式 |
 | --- | --- | --- |
-| Asuswrt-Merlin / gnuton | `mihomo-merlin_<版本>_armv7_merlin.tar.gz` | 原生安装到 `/jffs`（推荐） |
-| koolshare / SWRT | `mihomo-merlin_<版本>_armv7_koolshare.tar.gz` | 软件中心离线安装 |
+| Asuswrt-Merlin / gnuton | `MlClash_<版本>_armv7_merlin.tar.gz` | 原生安装到 `/jffs`（推荐） |
+| koolshare / SWRT | `MlClash_<版本>_armv7_koolshare.tar.gz` | 软件中心离线安装 |
 
 ### 3.1 Asuswrt-Merlin / gnuton（推荐）
 
-1. 下载 `mihomo-merlin_<版本>_armv7_merlin.tar.gz`。
+1. 下载 `MlClash_<版本>_armv7_merlin.tar.gz`。
 2. 路由器后台开启 **Administration → System → Enable JFFS custom scripts and configs**
    （等价于 `nvram set jffs2_scripts=1 && nvram commit`）。
 3. 上传并安装：
 
    ```sh
-   cd /tmp && tar -xzf mihomo-merlin_<版本>_armv7_merlin.tar.gz
-   sh /tmp/mihomo-merlin/install.sh
+   cd /tmp && tar -xzf MlClash_<版本>_armv7_merlin.tar.gz
+   sh /tmp/MlClash/install.sh
    ```
 
-4. 安装到 `/jffs/mihomo-merlin`，同时写入 `/jffs/scripts/services-start`、
+4. 安装到 `/jffs/mlclash`，同时写入 `/jffs/scripts/services-start`、
    `services-stop`、`nat-start` 托管块；打开 `http://<路由器IP>:9380`。
-5. 卸载：`sh /jffs/mihomo-merlin/uninstall.sh [--keep-data]`。
+5. 卸载：`sh /jffs/mlclash/uninstall.sh [--keep-data]`。
 6. 固件升级后 `/jffs` 通常保留，但 Asus 的升级流程可能改动 `/jffs/scripts`；
    升级完重新执行一次 `install.sh` 即可（钩子块幂等，不会重复叠加）。
 
@@ -164,22 +167,22 @@
 - 仅支持 **armv7l**；TUF-AX3000 v1/v2 在 gnuton 3004 分支的支持列表内。
 - `nat-start` 会在防火墙重启 / WAN 重拨后即时重放转发规则；看门狗每 45 秒实测规则是否还在。
 - 面板启动时会按 `enabled` 标记自动拉起内核（前提是「开机自启」开启，且首次使用点过一次启动）。
-- 日志与内核备份放在 `/tmp/mihomo`（重启清空），不占 jffs；重启后上一版内核备份不再可回滚。
+- 日志与内核备份放在 `/tmp/mlclash`（重启清空），不占 jffs；重启后上一版内核备份不再可回滚。
 - 升级时先把旧二进制和内核备份移到 `/tmp`，峰值只保留一份新文件，适配 26 MB 级 jffs。
 - gnuton 默认 `vm.overcommit_memory=2`，slim 内核会启动失败；面板在启动内核前会自动调整为 0。
 - 从源码构建安装包：`./tools/build-merlin-package.sh`（见 §10）。
 
 ### 3.2 koolshare / SWRT 软件中心
 
-1. 下载 `mihomo-merlin_<版本>_armv7_koolshare.tar.gz`。
+1. 下载 `MlClash_<版本>_armv7_koolshare.tar.gz`。
 2. 路由器后台 →「软件中心」→「离线安装」→ 选择该文件。
 3. 安装完成后打开 `http://<路由器IP>:9380`。
 
 没有软件中心入口时，也可以手动安装：
 
 ```sh
-cd /tmp && tar -xzf mihomo-merlin_<版本>_armv7_koolshare.tar.gz
-sh /tmp/mihomo/install.sh
+cd /tmp && tar -xzf MlClash_<版本>_armv7_koolshare.tar.gz
+sh /tmp/mlclash/install.sh
 ```
 
 `install.sh` 会做机型/架构/空间检查，安装后登记菜单（有 `dbus` 时）并启动面板。
@@ -266,7 +269,7 @@ sh mihomo-cleanup.sh --yes --need 18300
 ## 8. 目录结构
 
 ```
-mihomo-merlin/
+MlClash/
 ├── build.sh                  打包脚本（交叉编译 + 拉内核/规则 + 出 tar.gz）
 ├── main.go / api.go          HTTP 服务、路由、鉴权
 ├── config.go                 生成 mihomo config.json
@@ -318,7 +321,7 @@ mihomo-merlin/
 
 ```sh
 # 依赖：Go 1.23+（go.mod）、curl、tar、gzip
-cd mihomo-merlin
+cd MlClash
 GO=$HOME/go/bin/go ./build.sh                 # 完整包（含 slim 内核与 chnroute）
 ./build.sh --kernel /path/to/mihomo           # 用指定内核
 ./build.sh --no-download                      # 只用 .cache 里的内核/规则
@@ -327,8 +330,8 @@ GO=$HOME/go/bin/go ./build.sh                 # 完整包（含 slim 内核与 c
 
 产物在 `dist/`：
 
-- Merlin：`mihomo-merlin_<版本>_armv7_merlin.tar.gz`，由 `tools/build-merlin-package.sh` 生成
-- koolshare：`mihomo-merlin_<版本>_armv7_koolshare.tar.gz` + `.sha256`
+- Merlin：`MlClash_<版本>_armv7_merlin.tar.gz`，由 `tools/build-merlin-package.sh` 生成
+- koolshare：`MlClash_<版本>_armv7_koolshare.tar.gz` + `.sha256`
 
 ## 11. 开发与测试
 
@@ -353,7 +356,7 @@ sh tests/merlin_install_smoke.sh
 
 ```sh
 MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
-  ./dist/stage/mihomo/bin/mihomo-panel -listen :9380
+  ./dist/stage/mlclash/bin/mlclash-panel -listen :9380
 ```
 
 ## 12. 排障
@@ -362,11 +365,11 @@ MM_DATA_DIR=/tmp/mmdata MM_MIHOMO=$(command -v mihomo) MM_NO_IPTABLES=1 \
 | --- | --- |
 | 软件中心提示「不是 ASUS hnd 平台的离线包」 | 包根目录需有 `.valid`（内容 `hnd`），ASP 里需有 `PKG_ARCH="hnd"` |
 | 安装时提示空间不足 | 见 §5 |
-| 面板打不开 | `pidof mihomo-panel`；Merlin 日志在 `/tmp/mihomo/logs/panel.log`，koolshare 在 `/koolshare/mihomo/logs/panel.log` |
+| 面板打不开 | `pidof mlclash-panel`；Merlin 日志在 `/tmp/mlclash/logs/panel.log`，koolshare 在 `/koolshare/mlclash/logs/panel.log` |
 | 提示「配置校验失败」 | 按提示修改订阅或节点；内核原文在对应数据目录的 `logs/mihomo.log` |
 | 节点列表为空但订阅正常 | 看订阅卡错误信息，或「原始内容」确认服务器返回了什么 |
 | 启动成功但没法上网 | `iptables -t nat -L MIHOMO -n -v` 看规则；`iptables -t nat -L PREROUTING -n` 看跳转 |
-| 重启防火墙后失效 | `nat-start` 会即时重放；看门狗 45 秒兜底。Merlin：`/jffs/mihomo-merlin/ctl.sh reapply` |
+| 重启防火墙后失效 | `nat-start` 会即时重放；看门狗 45 秒兜底。Merlin：`/jffs/mlclash/ctl.sh reapply` |
 | 服务连通性显示「受限 / 超时」 | 探测走当前节点：403 可能是 Cloudflare/站点对出口 IP 的限制，超时可能是节点到该站点不通；换节点后点刷新 |
 | 国内站点仍走代理 / 很慢 | 确认「设置 → 代理与端口 → 规则预设」是「国内直连」；2.0.4 已修复 cn-ip 规则集格式（原先加载 0 条），升级后国内 IP 会命中 DIRECT |
 | 想看内核输出 | 面板「日志」页，或 `tail -f` 数据目录下的 `logs/mihomo.log` |

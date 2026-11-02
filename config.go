@@ -86,11 +86,12 @@ func (a *App) ensureRuleSet() {
 	if fileExists(a.ruleSetPath()) {
 		return
 	}
-	// 安装包会把规则放在 /koolshare/mihomo/rules/chnroute.txt；
-	// 这里再兜底找一次面板自身目录下的 rules/。
+	// 安装包会把规则放在 /koolshare/mlclash/rules/chnroute.txt；
+	// 这里再兜底找一次面板自身目录下的 rules/。旧版 /koolshare/mihomo 也兼容。
 	for _, c := range []string{
 		filepath.Join(a.dataDir, "dist-rules", "chnroute.txt"),
 		"rules/chnroute.txt",
+		"/koolshare/mlclash/rules/chnroute.txt",
 		"/koolshare/mihomo/rules/chnroute.txt",
 	} {
 		if fileExists(c) {

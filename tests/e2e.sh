@@ -4,16 +4,16 @@
 set -e
 cd "$(dirname "$0")/.."
 GO=${GO:-/tmp/toolchain/go/bin/go}
-MIHOMO=${MM_MIHOMO:-/tmp/toolchain/mihomo/mihomo-darwin-arm64}
+MIHOMO=${MLCLASH_MIHOMO:-/tmp/toolchain/mihomo/mihomo-darwin-arm64}
 
 echo ">>> 前端一致性检查"
 python3 tests/ui_check.py
 
 echo ">>> 单元测试"
-MM_MIHOMO="$MIHOMO" MM_NO_IPTABLES=1 "$GO" test ./... 2>&1 | grep -vE "TLS handshake error" | tail -2
+MLCLASH_MIHOMO="$MIHOMO" MLCLASH_NO_IPTABLES=1 "$GO" test ./... 2>&1 | grep -vE "TLS handshake error" | tail -2
 
 echo ">>> 端到端（真内核）"
-MM_MIHOMO="$MIHOMO" MM_NO_IPTABLES=1 "$GO" test -run 'TestEndToEndWithRealCore|TestSubNameDuplicate|TestFetchProgressStages' -v ./... 2>&1 \
+MLCLASH_MIHOMO="$MIHOMO" MLCLASH_NO_IPTABLES=1 "$GO" test -run 'TestEndToEndWithRealCore|TestSubNameDuplicate|TestFetchProgressStages' -v ./... 2>&1 \
 	| grep -E "✓|FAIL|PASS|ok " | sed 's/^ *//'
 
 echo ">>> 安装脚本冒烟"

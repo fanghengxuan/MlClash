@@ -86,13 +86,20 @@ func TestRestoreRejectsForeignBundle(t *testing.T) {
 	if rec.Code != 400 {
 		t.Fatalf("外部文件应被拒绝，实际 %d", rec.Code)
 	}
-	body2 := `{"kind":"mihomo-merlin-backup","format":99}`
+	body2 := `{"kind":"mlclash-backup","format":99}`
 	rec2 := httptest.NewRecorder()
 	a.handleRestore(rec2, httptest.NewRequest("POST", "/api/restore", strings.NewReader(body2)))
 	if rec2.Code != 400 {
 		t.Fatalf("过新版本应被拒绝，实际 %d", rec2.Code)
 	}
-	t.Log("✓ 非法备份被拒绝")
+	// 2.x 的旧备份标识仍应被接受。
+	body3 := `{"kind":"mihomo-merlin-backup","format":1,"settings":{},"subs":[]}`
+	rec3 := httptest.NewRecorder()
+	a.handleRestore(rec3, httptest.NewRequest("POST", "/api/restore", strings.NewReader(body3)))
+	if rec3.Code != 200 {
+		t.Fatalf("旧版备份应被接受，实际 %d %s", rec3.Code, rec3.Body.String())
+	}
+	t.Log("✓ 非法备份被拒绝，旧版备份可恢复")
 }
 
 func mustRead(t *testing.T, path string) []byte {

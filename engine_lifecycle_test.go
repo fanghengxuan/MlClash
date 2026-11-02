@@ -67,7 +67,7 @@ func fakeClashAPI(t *testing.T, a *App) *httptest.Server {
 
 func setupFakeEngine(t *testing.T) (*App, string) {
 	t.Helper()
-	t.Setenv("MM_NO_IPTABLES", "1")
+	t.Setenv("MLCLASH_NO_IPTABLES", "1")
 	a := newBackendTestApp(t)
 	path, startLog := fakeKernel(t, a.dataDir)
 	a.mihomoPath = path

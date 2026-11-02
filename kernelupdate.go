@@ -72,7 +72,7 @@ func (a *App) fetchKernelReleases() ([]kernelRelease, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "mihomo-merlin-panel/"+panelVersion)
+	req.Header.Set("User-Agent", "MlClash/"+panelVersion)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("访问 GitHub 失败：%v", err)
@@ -136,7 +136,7 @@ func (a *App) getWithFallbackProgress(rawURL string, maxBytes int64, timeout tim
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("User-Agent", "mihomo-merlin-panel/"+panelVersion)
+		req.Header.Set("User-Agent", "MlClash/"+panelVersion)
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err

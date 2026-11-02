@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const panelVersion = "2.0.7"
+const panelVersion = "3.0.0"
 
 // panelPort 管理面板监听端口（插件安装脚本与 ASP 都按此端口访问）
 const panelPort = 9380
@@ -85,13 +85,13 @@ type App struct {
 }
 
 func main() {
-	listen := flag.String("listen", envOr("MM_LISTEN", ":9380"), "监听地址，如 :9380")
-	dataDir := flag.String("data", envOr("MM_DATA_DIR", ""), "数据目录")
+	listen := flag.String("listen", envOr("MLCLASH_LISTEN", ":9380"), "监听地址，如 :9380")
+	dataDir := flag.String("data", envOr("MLCLASH_DATA_DIR", ""), "数据目录")
 	showVer := flag.Bool("v", false, "显示版本号")
 	flag.Parse()
 
 	if *showVer {
-		fmt.Printf("mihomo-merlin panel %s (%s/%s)\n", panelVersion, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("MlClash panel %s (%s/%s)\n", panelVersion, runtime.GOOS, runtime.GOARCH)
 		return
 	}
 
@@ -172,7 +172,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("mihomo-merlin panel %s 监听 %s，数据目录 %s", panelVersion, *listen, app.dataDir)
+		log.Printf("MlClash panel %s 监听 %s，数据目录 %s", panelVersion, *listen, app.dataDir)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP 服务退出: %v", err)
 		}
@@ -288,17 +288,25 @@ func resolveDataDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	if v := os.Getenv("MM_DATA_DIR"); v != "" {
+	if v := os.Getenv("MLCLASH_DATA_DIR"); v != "" {
 		return v
 	}
 	if fi, err := os.Stat("/koolshare"); err == nil && fi.IsDir() {
-		return "/koolshare/mihomo"
+		newDir := "/koolshare/mlclash"
+		if fi, err := os.Stat(newDir); err == nil && fi.IsDir() {
+			return newDir
+		}
+		// 兼容手动替换二进制、尚未执行安装脚本迁移的旧版本。
+		if fi, err := os.Stat("/koolshare/mihomo"); err == nil && fi.IsDir() {
+			return "/koolshare/mihomo"
+		}
+		return newDir
 	}
 	return "./data"
 }
 
 func resolveMihomo() string {
-	if v := os.Getenv("MM_MIHOMO"); v != "" {
+	if v := os.Getenv("MLCLASH_MIHOMO"); v != "" {
 		return v
 	}
 	candidates := []string{

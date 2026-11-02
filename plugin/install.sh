@@ -1,9 +1,9 @@
 #!/bin/sh
-# mihomo 插件安装脚本（软件中心 / 手动安装通用）
+# MlClash 插件安装脚本（软件中心 / 手动安装通用）
 # 目标平台：华硕 AX 系列 32 位 ARM 机型（axhnd.675x / 4908 等，内核 4.1/4.19）
 
 DIR=$(cd "$(dirname "$0")" && pwd)
-module=mihomo
+module=mlclash
 PLVER=$(cat "${DIR}/version" 2>/dev/null)
 [ -n "$PLVER" ] || PLVER=1.1.3
 VERSION=${PLVER}
@@ -38,7 +38,7 @@ LANIP=$(nvram get lan_ipaddr 2>/dev/null)
 [ -n "$LANIP" ] || LANIP="192.168.50.1"
 
 mm_log "================================================"
-mm_log " Mihomo 魔方 v$(cat "${DIR}/version" 2>/dev/null) 安装程序"
+mm_log " MlClash v$(cat "${DIR}/version" 2>/dev/null) 安装程序"
 mm_log " 机型：${MODEL:-未知}  架构：${ARCH}  内核：$(uname -r)"
 mm_log "================================================"
 
@@ -64,25 +64,28 @@ esac
 
 # 磁盘空间检查：按「本包实际解压大小」判断，而不是写死 20MB
 # （写死 20MB 会把 jffs 只有 17MB 级别的机型全部拦掉，连精简包也装不上）
-# MM_PAYLOAD_KB 仅供测试注入（冒烟测试里二进制被换成桩，du 量不出来）
-PAYLOAD_KB=${MM_PAYLOAD_KB:-$(du -sk "$DIR" 2>/dev/null | awk '{print $1}')}
+# MLCLASH_PAYLOAD_KB 仅供测试注入（冒烟测试里二进制被换成桩，du 量不出来）
+PAYLOAD_KB=${MLCLASH_PAYLOAD_KB:-$(du -sk "$DIR" 2>/dev/null | awk '{print $1}')}
 [ -n "$PAYLOAD_KB" ] || PAYLOAD_KB=0
 NEED_KB=$(( PAYLOAD_KB + 1024 ))   # 留 1MB 余量给配置/日志
 [ "$NEED_KB" -ge 2048 ] || NEED_KB=2048
 FREE_KB=$(df -k /koolshare 2>/dev/null | awk 'NR==2 {print $4}')
 if [ -n "$FREE_KB" ] && [ "$FREE_KB" -lt "$NEED_KB" ] 2>/dev/null; then
-	fail "剩余空间不足：本包需要 ${NEED_KB}KB（约 $((NEED_KB / 1024))MB），当前仅 ${FREE_KB}KB。请清理 /jffs 后重试，或改用 lite 包"
+	fail "剩余空间不足：本包需要 ${NEED_KB}KB（约 $((NEED_KB / 1024))MB），当前仅 ${FREE_KB}KB。请清理 /jffs 后重试，或改用不带内核的安装包"
 fi
 mm_log "剩余空间：${FREE_KB:-未知}KB（本包需要 ${NEED_KB}KB）"
 
 # 停止旧版本
-if [ -x /koolshare/scripts/mihomo_ctl.sh ]; then
+if [ -x /koolshare/scripts/mlclash_ctl.sh ]; then
 	mm_log "检测到已安装的旧版本，先停止运行"
+	"${SH:-/bin/sh}" /koolshare/scripts/mlclash_ctl.sh stop >/dev/null 2>&1
+fi
+# 兼容 2.x 的控制脚本
+if [ -x /koolshare/scripts/mihomo_ctl.sh ]; then
 	"${SH:-/bin/sh}" /koolshare/scripts/mihomo_ctl.sh stop >/dev/null 2>&1
 fi
 
 mkdir -p /koolshare/bin /koolshare/webs /koolshare/res /koolshare/scripts /koolshare/init.d
-mkdir -p /koolshare/mihomo/providers /koolshare/mihomo/rules /koolshare/mihomo/logs
 
 mm_log "开始安装文件"
 /bin/sh "${DIR}/scripts/setup.sh" || fail "安装文件阶段失败"

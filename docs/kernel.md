@@ -61,7 +61,7 @@ free
 cat /proc/$(pidof mihomo)/status | grep -E "VmRSS|VmSize"
 
 # 3) 面板启动一次要多久（对比 UPX 前后的体感）
-time sh /koolshare/scripts/mihomo_ctl.sh restart
+time sh /koolshare/scripts/mlclash_ctl.sh restart
 ```
 
 如果 `VmSize` 明显超过 100 MB、或者 8 小时运行后 `MemAvailable` 低于 20 MB，

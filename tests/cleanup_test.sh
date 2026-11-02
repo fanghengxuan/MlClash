@@ -9,20 +9,26 @@ PROJ=$(cd "$(dirname "$0")/.." && pwd)
 SRC="$PROJ/tools/preinstall-cleanup.sh"
 [ -f "$SRC" ] || { echo "缺少 $SRC"; exit 1; }
 
-ROOT=$(mktemp -d /tmp/mm-cleanup.XXXXXX)
+ROOT=$(mktemp -d /tmp/mlclash-cleanup.XXXXXX)
 KS="$ROOT/koolshare"
 JFFS="$ROOT/jffs"
-mkdir -p "$KS"/bin "$KS"/webs "$KS"/res "$KS"/scripts "$KS"/init.d "$KS"/mihomo/kernel "$JFFS"
+mkdir -p "$KS"/bin "$KS"/webs "$KS"/res "$KS"/scripts "$KS"/init.d "$KS"/mihomo/kernel "$KS"/mlclash/kernel "$JFFS"
 
-# 造残留：数据目录 + 内核备份 + 两个二进制 + 菜单页
+# 造残留：2.x 与 3.0 各一套，验证两代路径都能清理
 head -c 400000 /dev/urandom > "$KS/mihomo/kernel/backup-1.bin"
 head -c 300000 /dev/urandom > "$KS/mihomo/kernel/backup-2.bin"
 head -c 200000 /dev/urandom > "$KS/bin/mihomo"
 head -c 200000 /dev/urandom > "$KS/bin/mihomo-panel"
+head -c 200000 /dev/urandom > "$KS/bin/mlclash-panel"
+head -c 300000 /dev/urandom > "$KS/mlclash/kernel/backup-3.bin"
 echo menu > "$KS/webs/Module_mihomo.asp"
+echo menu > "$KS/webs/Module_mlclash.asp"
 echo icon > "$KS/res/icon-mihomo.png"
+echo icon > "$KS/res/icon-mlclash.png"
 ln -s "$KS/scripts/mihomo_ctl.sh" "$KS/init.d/S99mihomo.sh" 2>/dev/null || true
+ln -s "$KS/scripts/mlclash_ctl.sh" "$KS/init.d/S99mlclash.sh" 2>/dev/null || true
 echo ctl > "$KS/scripts/mihomo_ctl.sh"
+echo ctl > "$KS/scripts/mlclash_ctl.sh"
 
 # 生成一份把 /koolshare、/jffs 换成临时目录的副本
 TEST_SH="$ROOT/cleanup.sh"
@@ -41,10 +47,13 @@ ok "预览模式只报告不删除"
 
 echo "=== 2) --yes 应删干净 ==="
 sh "$TEST_SH" --yes > "$ROOT/apply.log" 2>&1 || fail "--yes 执行失败"
-[ ! -d "$KS/mihomo" ] || fail "数据目录未删除"
+[ ! -d "$KS/mihomo" ] || fail "2.x 数据目录未删除"
+[ ! -d "$KS/mlclash" ] || fail "3.0 数据目录未删除"
 [ ! -f "$KS/bin/mihomo" ] || fail "内核未删除"
-[ ! -f "$KS/bin/mihomo-panel" ] || fail "面板未删除"
-[ ! -f "$KS/webs/Module_mihomo.asp" ] || fail "菜单页未删除"
+[ ! -f "$KS/bin/mihomo-panel" ] || fail "2.x 面板未删除"
+[ ! -f "$KS/bin/mlclash-panel" ] || fail "3.0 面板未删除"
+[ ! -f "$KS/webs/Module_mihomo.asp" ] || fail "2.x 菜单页未删除"
+[ ! -f "$KS/webs/Module_mlclash.asp" ] || fail "3.0 菜单页未删除"
 grep -q "已删除" "$ROOT/apply.log" || fail "没报告删除了多少"
 ok "--yes 删除干净并报告释放量"
 
@@ -52,7 +61,7 @@ echo "=== 3) --need 空间判断 ==="
 sh "$TEST_SH" --need 16692 > "$ROOT/need.log" 2>&1 && ok "空间足够时退出码 0" || fail "空间足够却报失败"
 sh "$TEST_SH" --need 999999999 > "$ROOT/need2.log" 2>&1 && fail "空间不足时不该返回成功" || true
 grep -q "空间仍然不够" "$ROOT/need2.log" || fail "空间不足没有给提示"
-grep -q "lite" "$ROOT/need2.log" || fail "空间不足没有建议精简版"
+grep -q "不带内核" "$ROOT/need2.log" || fail "空间不足没有建议不带内核的安装包"
 ok "空间不足时返回非 0 并给出建议"
 
 rm -rf "$ROOT"

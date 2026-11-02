@@ -1,3 +1,3 @@
-module mihomo-merlin
+module mlclash
 
 go 1.23

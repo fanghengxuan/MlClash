@@ -1,6 +1,6 @@
 #!/bin/sh
 # 安装脚本冒烟测试：用假根目录 + 桩命令模拟 koolshare 路由器，
-# 验证 install.sh / uninstall.sh 的落盘位置、dbus 登记、开机自启软链、卸载清理。
+# 验证 install.sh / uninstall.sh 的 2.x 迁移、落盘位置、dbus 登记、开机自启软链、卸载清理。
 #
 # 用法：sh tests/install_smoke.sh
 # 依赖：sh、sed、tar、mktemp；不需要 ARM 环境
@@ -8,14 +8,13 @@
 set -eu
 
 PROJ=$(cd "$(dirname "$0")/.." && pwd)
-PKG_SRC="$PROJ/dist/stage/mihomo"
-[ -d "$PKG_SRC" ] || { echo "先跑 ./build.sh 生成 dist/stage/mihomo"; exit 1; }
+PKG_SRC="$PROJ/dist/stage/mlclash"
+[ -d "$PKG_SRC" ] || { echo "先跑 ./build.sh 生成 dist/stage/mlclash"; exit 1; }
 
-ROOT=$(mktemp -d /tmp/mm-smoke.XXXXXX)
+ROOT=$(mktemp -d /tmp/mlclash-smoke.XXXXXX)
 STUB="$ROOT/stub"
 KS="$ROOT/koolshare"
 mkdir -p "$STUB" "$KS"/bin "$KS"/webs "$KS"/res "$KS"/scripts "$KS"/init.d
-# 安装脚本会自己设 PATH（不再 source base.sh），所以桩命令要放进 $KS/bin
 USE_BASH_ALIAS=""
 if bash -c 'true' 2>/dev/null && bash -O expand_aliases -c 'true' 2>/dev/null; then
 	USE_BASH_ALIAS=1
@@ -57,7 +56,7 @@ cat > "$STUB/dbus" <<EOF
 #!/bin/sh
 echo "dbus \$*" >> "$ROOT/dbus.log"
 case "\$2" in
-	softcenter_module_mihomo_install) echo 4 ;;
+	softcenter_module_mlclash_install) echo 4 ;;
 esac
 EOF
 
@@ -71,14 +70,13 @@ EOF
 cat > "$STUB/df" <<EOF
 #!/bin/sh
 echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
-echo "/dev/mtdblock 65536 0 \${MM_FAKE_FREE_KB:-17548} 1% /jffs"
+echo "/dev/mtdblock 65536 0 \${MLCLASH_FAKE_FREE_KB:-17548} 1% /jffs"
 EOF
 chmod +x "$STUB/df"
 
 # killall：macOS 没有该命令（BusyBox 有），给个桩避免卸载脚本报错
 cat > "$STUB/killall" <<'EOF'
 #!/bin/sh
-# 忽略 -q/-9 等选项，直接成功
 exit 0
 EOF
 chmod +x "$STUB/killall"
@@ -104,22 +102,20 @@ esac
 EOF
 
 # 面板桩：-v 立刻返回；正常启动时写 pid 后挂起（模拟常驻进程）
-cat > "$STUB/mihomo-panel" <<EOF
+cat > "$STUB/mlclash-panel" <<EOF
 #!/bin/sh
 case "\$1" in
-	-v) echo "mihomo-merlin panel 1.0.1-stub"; exit 0 ;;
+	-v) echo "MlClash panel 3.0.0-stub"; exit 0 ;;
 esac
 echo \$\$ > "$ROOT/panel.pid"
-echo "mihomo-merlin panel 1.0.1-stub started"
+echo "MlClash panel 3.0.0-stub started"
 exec sleep 300
 EOF
 
 chmod +x "$STUB"/*
-# 模拟 koolshare 的 base.sh：里面正是把 echo_date 定义成别名，
-# busybox ash 解析函数定义时也会展开别名 —— 这是必须覆盖的回归点
+# 模拟 koolshare 的 base.sh：里面正是把 echo_date 定义成别名
 cat > "$KS/scripts/base.sh" <<BASEEOF
 #!/bin/sh
-# 模拟 koolshare 固件的 base.sh：既有 echo_date 别名，也提供 dbus（shell 函数形式）
 alias echo_date='echo -n ""'
 dbus() {
 	printf 'dbus %s\n' "\$*" >> "$ROOT/dbus.log"
@@ -128,91 +124,98 @@ BASEEOF
 
 # ---------- 复制并改路径 ----------
 mkdir -p "$ROOT/pkg"
-cp -R "$PKG_SRC" "$ROOT/pkg/mihomo"
-# 真正的 armv7 二进制在 mac 上跑不了，用桩替换掉（本测试只验脚本逻辑）
-cp -f "$STUB/mihomo" "$ROOT/pkg/mihomo/bin/mihomo"
-cp -f "$STUB/mihomo-panel" "$ROOT/pkg/mihomo/bin/mihomo-panel"
-chmod +x "$ROOT/pkg/mihomo/bin/"*
-for f in "$ROOT/pkg/mihomo/install.sh" "$ROOT/pkg/mihomo/uninstall.sh" "$ROOT/pkg/mihomo/scripts/mihomo_ctl.sh" "$ROOT/pkg/mihomo/scripts/setup.sh"; do
+cp -R "$PKG_SRC" "$ROOT/pkg/mlclash"
+cp -f "$STUB/mihomo" "$ROOT/pkg/mlclash/bin/mihomo"
+cp -f "$STUB/mlclash-panel" "$ROOT/pkg/mlclash/bin/mlclash-panel"
+chmod +x "$ROOT/pkg/mlclash/bin/"*
+for f in "$ROOT/pkg/mlclash/install.sh" "$ROOT/pkg/mlclash/uninstall.sh" \
+	"$ROOT/pkg/mlclash/scripts/mlclash_ctl.sh" "$ROOT/pkg/mlclash/scripts/setup.sh"; do
 	sed -i '' -e "s#/koolshare#$KS#g" "$f" 2>/dev/null || sed -i -e "s#/koolshare#$KS#g" "$f"
 done
 
-# ---------- 模拟已装旧版本：目标文件已存在，安装必须能覆盖 ----------
-echo "=== 安装（覆盖已存在的旧文件）==="
+# ---------- 模拟已装 2.x：目标文件已存在，安装必须迁移/覆盖 ----------
+echo "=== 安装（从 2.x 覆盖升级）==="
 echo "OLD-KERNEL" > "$KS/bin/mihomo"
 echo "OLD-PANEL" > "$KS/bin/mihomo-panel"
-mkdir -p "$KS/mihomo" && echo "old setting" > "$KS/mihomo/settings.json"
+mkdir -p "$KS/mihomo" && echo '{"mode":"rule","adBlock":true}' > "$KS/mihomo/settings.json"
 cp -f "$STUB"/* "$KS/bin/" 2>/dev/null || true
-MM_PAYLOAD_KB=14644 run_sh "$ROOT/pkg/mihomo/install.sh" > "$ROOT/install.log" 2>&1 || {
-	if false; then :; fi
+MLCLASH_PAYLOAD_KB=14644 run_sh "$ROOT/pkg/mlclash/install.sh" > "$ROOT/install.log" 2>&1 || {
+	cat "$ROOT/install.log"
 }
-# 桩环境里最后的「面板是否启动」可能失败，但文件必须落齐；这里只做断言
 tail -6 "$ROOT/install.log"
 
 # ---------- 断言 ----------
-if grep -v '^[[:space:]]*#' "$ROOT/pkg/mihomo/install.sh" | grep -qE 'echo_date[[:space:]]*\(\)'; then
+if grep -v '^[[:space:]]*#' "$ROOT/pkg/mlclash/install.sh" | grep -qE 'echo_date[[:space:]]*\(\)'; then
 	fail "install.sh 仍定义 echo_date()，会被 base.sh 的别名展开成语法错误"
 fi
-grep -q 'mm_log()' "$ROOT/pkg/mihomo/install.sh" || fail "install.sh 缺少 mm_log() 日志函数"
+grep -q 'mm_log()' "$ROOT/pkg/mlclash/install.sh" || fail "install.sh 缺少 mm_log() 日志函数"
 ok "日志函数为 mm_log（避开 base.sh 的 echo_date 别名）"
 
-grep -q '\. /koolshare/scripts/base.sh' "$ROOT/pkg/mihomo/install.sh" \
-	|| grep -q 'base\.sh' "$ROOT/pkg/mihomo/install.sh" \
-	|| fail "install.sh 没有 source base.sh，拿不到固件的 dbus"
+grep -q 'base\.sh' "$ROOT/pkg/mlclash/install.sh" || fail "install.sh 没有 source base.sh"
 ok "install.sh 会 source base.sh（取 dbus 等固件函数）"
 
 [ -x "$KS/bin/mihomo" ] || fail "内核未安装"
 ok "内核已安装到 $KS/bin/mihomo（覆盖旧文件成功）"
 grep -q "OLD-KERNEL" "$KS/bin/mihomo" && fail "旧内核未被覆盖（busybox cp 覆盖问题回归）"
 
-[ -x "$KS/bin/mihomo-panel" ] || fail "面板未安装"
-ok "面板已安装"
+[ -x "$KS/bin/mlclash-panel" ] || fail "面板未安装"
+[ ! -e "$KS/bin/mihomo-panel" ] || fail "旧面板未清理"
+ok "面板已安装，旧面板已清理"
 
-[ -x "$KS/scripts/mihomo_ctl.sh" ] || fail "控制脚本未安装"
-ok "控制脚本已安装"
+[ -x "$KS/scripts/mlclash_ctl.sh" ] || fail "控制脚本未安装"
+[ ! -e "$KS/scripts/mihomo_ctl.sh" ] || fail "旧控制脚本未清理"
+ok "控制脚本已安装，旧脚本已清理"
 
-[ -x "$KS/scripts/uninstall_mihomo.sh" ] || fail "软件中心卸载钩子未安装（按钮会失效）"
-ok "卸载钩子 /scripts/uninstall_mihomo.sh 已安装"
+[ -x "$KS/scripts/uninstall_mlclash.sh" ] || fail "软件中心卸载钩子未安装（按钮会失效）"
+[ ! -e "$KS/scripts/uninstall_mihomo.sh" ] || fail "旧卸载钩子未清理"
+ok "卸载钩子 /scripts/uninstall_mlclash.sh 已安装"
 
-[ -L "$KS/init.d/S99mihomo.sh" ] || fail "缺少开机自启软链 S99"
-[ -L "$KS/init.d/N99mihomo.sh" ] || fail "缺少关机停止软链 N99"
-ok "init.d S99/N99 软链已建立"
+[ -L "$KS/init.d/S99mlclash.sh" ] || fail "缺少开机自启软链 S99mlclash"
+[ -L "$KS/init.d/N99mlclash.sh" ] || fail "缺少关机停止软链 N99mlclash"
+[ ! -e "$KS/init.d/S99mihomo.sh" ] || fail "旧 S99 软链未清理"
+ok "init.d S99/N99 软链已更新"
 
-[ -f "$KS/webs/Module_mihomo.asp" ] || fail "菜单页未安装"
-[ -f "$KS/res/icon-mihomo.png" ] || fail "图标未安装"
-ok "菜单页与图标已安装"
+[ -f "$KS/webs/Module_mlclash.asp" ] || fail "菜单页未安装"
+[ -f "$KS/res/icon-mlclash.png" ] || fail "图标未安装"
+[ ! -e "$KS/webs/Module_mihomo.asp" ] || fail "旧菜单页未清理"
+ok "菜单页与图标已安装，旧文件已清理"
 
-[ -f "$ROOT/pkg/mihomo/.valid" ] || fail "安装包缺少 .valid 平台标记（软件中心会拒绝安装）"
-[ "$(cat "$ROOT/pkg/mihomo/.valid" | tr -d '\n')" = "hnd" ] || fail ".valid 内容不是 hnd"
+[ -f "$ROOT/pkg/mlclash/.valid" ] || fail "安装包缺少 .valid 平台标记（软件中心会拒绝安装）"
+[ "$(cat "$ROOT/pkg/mlclash/.valid" | tr -d '\n')" = "hnd" ] || fail ".valid 内容不是 hnd"
 ok ".valid 平台标记正确：hnd"
 
-grep -q 'PKG_ARCH = "hnd"' "$ROOT/pkg/mihomo/webs/Module_mihomo.asp" || fail "ASP 缺少 PKG_ARCH=hnd 元信息"
-ok "ASP 元信息 PKG_ARCH=hnd 存在"
+grep -q 'PKG_ARCH = "hnd"' "$ROOT/pkg/mlclash/webs/Module_mlclash.asp" || fail "ASP 缺少 PKG_ARCH=hnd 元信息"
+grep -q 'PKG_NAME = "mlclash"' "$ROOT/pkg/mlclash/webs/Module_mlclash.asp" || fail "ASP 缺少 PKG_NAME=mlclash"
+ok "ASP 元信息正确"
 
-[ -f "$KS/mihomo/rules/chnroute.txt" ] || fail "规则文件未安装"
-[ -d "$KS/mihomo/providers" ] || fail "数据目录未创建"
-ok "规则与数据目录已就位"
+[ -f "$KS/mlclash/rules/chnroute.txt" ] || fail "规则文件未安装"
+[ -d "$KS/mlclash/providers" ] || fail "数据目录未创建"
+[ -f "$KS/mlclash/settings.json" ] || fail "旧设置未迁移"
+grep -q '"adBlock":true' "$KS/mlclash/settings.json" || fail "旧设置内容不对"
+[ ! -d "$KS/mihomo" ] || fail "旧数据目录未迁移/清理"
+ok "规则与数据目录已就位，旧设置已迁移"
 
 for k in name title description version install; do
-	grep -q "softcenter_module_mihomo_${k}=" "$ROOT/dbus.log" || fail "缺少 dbus 键 softcenter_module_mihomo_${k}"
+	grep -q "softcenter_module_mlclash_${k}=" "$ROOT/dbus.log" || fail "缺少 dbus 键 softcenter_module_mlclash_${k}"
 done
-grep -q 'softcenter_module_mihomo_install=1' "$ROOT/dbus.log" || fail "install 标记不是 1（MerlinClash Lite 在 388 上用 1）"
-ok "软件中心菜单登记完整（name/title/description/version/install=1）"
+grep -q 'softcenter_module_mlclash_install=1' "$ROOT/dbus.log" || fail "install 标记不是 1"
+grep -q 'dbus remove softcenter_module_mihomo_' "$ROOT/dbus.log" || fail "旧 dbus 键未清理"
+ok "软件中心菜单登记完整，旧键已清理"
 
 grep -q "剩余空间：17548KB" "$ROOT/install.log" || fail "安装脚本应打印剩余空间"
 grep -q "本包需要 15668KB" "$ROOT/install.log" || fail "安装脚本应按实际大小报告需要的空间（14644+1024）"
 ok "空间检查按实际大小：$(grep -o '剩余空间：[^】]*' "$ROOT/install.log" | head -1)"
 
-[ "$(cat "$KS/mihomo/version" 2>/dev/null | tr -d '\n')" = "$(cat "$PROJ/plugin/version" | tr -d '\n')" ] \
+[ "$(cat "$KS/mlclash/version" 2>/dev/null | tr -d '\n')" = "$(cat "$PROJ/plugin/version" | tr -d '\n')" ] \
 	|| fail "版本号未写入数据目录"
-ok "版本号已写入：$(cat "$KS/mihomo/version")"
+ok "版本号已写入：$(cat "$KS/mlclash/version")"
 
-# ---------- 空间不足时应拒绝安装（用另一份拷贝，避免影响主流程） ----------
+# ---------- 空间不足时应拒绝安装 ----------
 echo
 echo "=== 空间不足场景 ==="
 ROOT2="$ROOT/pkg2"
 cp -R "$ROOT/pkg" "$ROOT2"
-MM_FAKE_FREE_KB=5000 MM_PAYLOAD_KB=14644 run_sh "$ROOT2/mihomo/install.sh" > "$ROOT/install-low.log" 2>&1 && fail "空间不足时不该安装成功"
+MLCLASH_FAKE_FREE_KB=5000 MLCLASH_PAYLOAD_KB=14644 run_sh "$ROOT2/mlclash/install.sh" > "$ROOT/install-low.log" 2>&1 && fail "空间不足时不该安装成功"
 grep -q "剩余空间不足" "$ROOT/install-low.log" || fail "空间不足时缺少明确提示"
 grep -q "本包需要" "$ROOT/install-low.log" || fail "空间不足提示应说明需要多少"
 ok "空间不足时明确拒绝：$(grep -o '剩余空间不足[^】]*' "$ROOT/install-low.log" | head -1)"
@@ -221,32 +224,20 @@ rm -rf "$ROOT2"
 # ---------- 跑卸载 ----------
 echo
 echo "=== 卸载 ==="
-run_sh "$KS/scripts/uninstall_mihomo.sh" > "$ROOT/uninstall.log" 2>&1 || fail "卸载脚本执行失败"
+run_sh "$KS/scripts/uninstall_mlclash.sh" > "$ROOT/uninstall.log" 2>&1 || fail "卸载脚本执行失败"
 cat "$ROOT/uninstall.log"
 
 [ ! -e "$KS/bin/mihomo" ] || fail "内核未删除"
-[ ! -e "$KS/bin/mihomo-panel" ] || fail "面板未删除"
-[ ! -e "$KS/scripts/uninstall_mihomo.sh" ] || fail "卸载脚本未自清理"
-[ ! -e "$KS/webs/Module_mihomo.asp" ] || fail "菜单页未删除"
-[ ! -L "$KS/init.d/S99mihomo.sh" ] || fail "自启软链未删除"
+[ ! -e "$KS/bin/mlclash-panel" ] || fail "面板未删除"
+[ ! -e "$KS/scripts/uninstall_mlclash.sh" ] || fail "卸载脚本未自清理"
+[ ! -e "$KS/webs/Module_mlclash.asp" ] || fail "菜单页未删除"
+[ ! -L "$KS/init.d/S99mlclash.sh" ] || fail "自启软链未删除"
 ok "程序文件、菜单页、自启软链均已清理"
 
-[ ! -d "$KS/mihomo" ] || fail "数据目录未删除（卸载应释放空间）"
+[ ! -d "$KS/mlclash" ] || fail "数据目录未删除（卸载应释放空间）"
+[ ! -d "$KS/mihomo" ] || fail "旧数据目录未删除"
 ok "数据目录已彻底删除（含订阅/节点/规则/内核备份/日志）"
 
-grep -q "softcenter_module_mihomo_install" "$ROOT/dbus.log" && grep -q "dbus remove softcenter_module_mihomo_install" "$ROOT/dbus.log" \
+grep -q "softcenter_module_mlclash_install" "$ROOT/dbus.log" && grep -q "dbus remove softcenter_module_mlclash_install" "$ROOT/dbus.log" \
 	|| fail "dbus 登记未清理"
 ok "dbus 菜单登记已清理"
-
-grep -q "iptables -t nat -D PREROUTING" "$ROOT/iptables.log" || fail "卸载时没有清理转发规则（残留会断网）"
-grep -q "iptables -t mangle -D FORWARD" "$ROOT/iptables.log" || fail "卸载时没有清理 MSS 钳制规则"
-ok "卸载时执行了 iptables 清理（nat / filter / mangle）"
-
-grep -q "已释放" "$ROOT/uninstall.log" || fail "卸载脚本应报告释放的空间"
-ok "卸载脚本报告了释放空间：$(grep -o '已释放[^】]*' "$ROOT/uninstall.log" | head -1)"
-
-# 收尾
-[ -f "$ROOT/panel.pid" ] && kill "$(cat "$ROOT/panel.pid")" 2>/dev/null || true
-rm -rf "$ROOT"
-echo
-echo "全部断言通过 🎉"

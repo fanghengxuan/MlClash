@@ -373,7 +373,7 @@ func (a *App) doFetchQuiet(rawURL string, viaProxy bool) (*http.Response, []byte
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Set("User-Agent", "mihomo-merlin/"+panelVersion)
+	req.Header.Set("User-Agent", "MlClash/"+panelVersion)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, err

@@ -176,7 +176,7 @@
     var back = MM.$('#btnBack');
     if (back) back.classList.toggle('hidden', !isPush(ctx));
     MM.$('#pageTitle').textContent = titleOf(ctx);
-    document.title = titleOf(ctx) + ' · Mihomo 魔方';
+    document.title = titleOf(ctx) + ' · MlClash';
   }
 
   router.refreshActions = function () { if (current) renderActions(current); };
@@ -191,7 +191,7 @@
     var dot = MM.$('#railDot'), label = MM.$('#railState'), ver = MM.$('#railVersion');
     if (dot) dot.className = 'dot' + (running ? ' on' : '');
     if (label) label.textContent = running ? '运行中' : '未运行';
-    if (ver) ver.textContent = 'v' + ((st && st.status && st.status.panel && st.status.panel.version) || '2.0.7');
+    if (ver) ver.textContent = 'v' + ((st && st.status && st.status.panel && st.status.panel.version) || '3.0.0');
   }
 
   function apply() {

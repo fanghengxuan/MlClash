@@ -72,9 +72,9 @@ func sha256File(path string) string {
 }
 
 // inspectELF 检查是否是 32 位 ARM Linux 可执行文件。
-// 返回错误说明原因；MM_TEST_KERNEL=1 时跳过架构校验（仅本地调试用）。
+// 返回错误说明原因；MLCLASH_TEST_KERNEL=1 时跳过架构校验（仅本地调试用）。
 func inspectELF(b []byte) error {
-	if os.Getenv("MM_TEST_KERNEL") == "1" {
+	if os.Getenv("MLCLASH_TEST_KERNEL") == "1" {
 		return nil
 	}
 	if len(b) < 64 {

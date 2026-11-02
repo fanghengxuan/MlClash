@@ -178,12 +178,12 @@ func keys(m map[string]Proxy) []string {
 // ---------- 与 mihomo 的集成测试 ----------
 
 func mihomoBin(t *testing.T) string {
-	p := os.Getenv("MM_MIHOMO")
+	p := os.Getenv("MLCLASH_MIHOMO")
 	if p == "" {
 		p = "/koolshare/bin/mihomo"
 	}
 	if !fileExists(p) {
-		t.Skip("未设置 MM_MIHOMO，跳过与真实内核的集成测试")
+		t.Skip("未设置 MLCLASH_MIHOMO，跳过与真实内核的集成测试")
 	}
 	return p
 }

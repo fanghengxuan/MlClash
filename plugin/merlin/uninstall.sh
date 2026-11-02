@@ -1,30 +1,36 @@
 #!/bin/sh
-# mihomo-merlin 卸载脚本（Asuswrt-Merlin / gnuton，无软件中心）
+# MlClash 卸载脚本（Asuswrt-Merlin / gnuton，无软件中心）
 #
 # 用法：uninstall.sh [--keep-data]
-#   默认删除 /jffs/mihomo-merlin 全部内容（含订阅/节点/规则/日志）
+#   默认删除 /jffs/mlclash 全部内容（含订阅/节点/规则/日志）
 #   --keep-data 只删程序，保留 data/ 下的订阅与设置
+#   同时兼容清理 2.x 的 /jffs/mihomo-merlin。
 
-ROOT=${MM_ROOT:-}
+ROOT=${MLCLASH_ROOT:-}
 JFFS=$ROOT/jffs
-BASE=$JFFS/mihomo-merlin
+BASE=$JFFS/mlclash
+OLD_BASE=$JFFS/mihomo-merlin
 SCRIPTS=$JFFS/scripts
 KEEP=0
 [ "${1:-}" = "--keep-data" ] && KEEP=1
 
 mm_log() { echo "【$(date '+%Y-%m-%d %H:%M:%S')】: $*"; }
 
-if [ -x "$BASE/ctl.sh" ]; then
-	"$BASE/ctl.sh" stop >/dev/null 2>&1
-fi
+for d in "$BASE" "$OLD_BASE"; do
+	if [ -x "$d/ctl.sh" ]; then
+		"$d/ctl.sh" stop >/dev/null 2>&1
+	fi
+done
+killall -q mlclash-panel 2>/dev/null
+killall -q mihomo-panel 2>/dev/null
 
 remove_hook() {
 	file=$1
 	[ -f "$file" ] || return 0
-	tmp="$file.mm.$$"
+	tmp="$file.mlclash.$$"
 	awk '
-		/^# >>> mihomo-merlin >>>/{skip=1; next}
-		/^# <<< mihomo-merlin <<</{skip=0; next}
+		/^# >>> (mihomo-merlin|mlclash) >>>/{skip=1; next}
+		/^# <<< (mihomo-merlin|mlclash) <<</{skip=0; next}
 		skip!=1{print}
 	' "$file" >"$tmp" || { rm -f "$tmp"; mm_log "更新 $file 失败"; return 1; }
 	cat "$tmp" >"$file"
@@ -40,20 +46,24 @@ remove_hook "$SCRIPTS/nat-start"
 if command -v iptables >/dev/null 2>&1; then
 	lanif=$(nvram get lan_ifname 2>/dev/null)
 	[ -n "$lanif" ] || lanif=br0
-	i=0
-	while [ "$i" -lt 5 ]; do
-		iptables -t nat -D PREROUTING -i "$lanif" -j MIHOMO 2>/dev/null || break
-		i=$((i + 1))
+	for chain in MLCLASH MIHOMO; do
+		i=0
+		while [ "$i" -lt 5 ]; do
+			iptables -t nat -D PREROUTING -i "$lanif" -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		iptables -t nat -F "$chain" 2>/dev/null
+		iptables -t nat -X "$chain" 2>/dev/null
 	done
-	i=0
-	while [ "$i" -lt 5 ]; do
-		iptables -t nat -D OUTPUT -j MIHOMO_OUT 2>/dev/null || break
-		i=$((i + 1))
+	for chain in MLCLASH_OUT MIHOMO_OUT; do
+		i=0
+		while [ "$i" -lt 5 ]; do
+			iptables -t nat -D OUTPUT -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		iptables -t nat -F "$chain" 2>/dev/null
+		iptables -t nat -X "$chain" 2>/dev/null
 	done
-	iptables -t nat -F MIHOMO 2>/dev/null
-	iptables -t nat -X MIHOMO 2>/dev/null
-	iptables -t nat -F MIHOMO_OUT 2>/dev/null
-	iptables -t nat -X MIHOMO_OUT 2>/dev/null
 	iptables -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null
 	i=0
 	while [ "$i" -lt 3 ]; do
@@ -63,12 +73,18 @@ if command -v iptables >/dev/null 2>&1; then
 fi
 
 if [ "$KEEP" = "1" ]; then
-	mm_log "保留数据目录：$BASE/data"
-	rm -rf "$BASE/bin" "$BASE/scripts" "$BASE/ctl.sh" "$BASE/uninstall.sh" "$BASE/version" 2>/dev/null
+	for d in "$BASE" "$OLD_BASE"; do
+		[ -d "$d" ] || continue
+		mm_log "保留数据目录：$d/data"
+		rm -rf "$d/bin" "$d/scripts" "$d/ctl.sh" "$d/uninstall.sh" "$d/version" 2>/dev/null
+	done
 else
-	mm_log "删除 $BASE"
-	rm -rf "$BASE"
+	for d in "$BASE" "$OLD_BASE"; do
+		[ -d "$d" ] || continue
+		mm_log "删除 $d"
+		rm -rf "$d"
+	done
 fi
-rm -rf /tmp/mihomo 2>/dev/null
+rm -rf "${MLCLASH_RUNTIME_DIR:-/tmp/mlclash}" "${MLCLASH_OLD_RUNTIME_DIR:-/tmp/mihomo}" 2>/dev/null
 
 mm_log "卸载完成"

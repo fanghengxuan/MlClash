@@ -11,7 +11,10 @@ import (
 )
 
 // backupKind 用来识别本插件导出的备份文件，避免误导入别人的 JSON。
-const backupKind = "mihomo-merlin-backup"
+const backupKind = "mlclash-backup"
+
+// legacyBackupKind 是 2.x（mihomo-merlin）的备份标识，恢复时继续接受。
+const legacyBackupKind = "mihomo-merlin-backup"
 
 // BackupBundle 是「设置 + 订阅 + 各订阅节点文件」的完整快照。
 // 订阅里含机场地址与令牌，属于敏感信息，导出时会在界面上提示。
@@ -60,7 +63,7 @@ func (a *App) buildBackup() (*BackupBundle, error) {
 
 // restoreBackup 覆盖设置与订阅，并把节点文件写回，随后热重载内核。
 func (a *App) restoreBackup(b *BackupBundle) error {
-	if b == nil || b.Kind != backupKind {
+	if b == nil || (b.Kind != backupKind && b.Kind != legacyBackupKind) {
 		return fmt.Errorf("不是本插件导出的备份文件")
 	}
 	if b.Format > 1 {
@@ -150,7 +153,7 @@ func (a *App) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Disposition",
-		fmt.Sprintf(`attachment; filename="mihomo-merlin-backup-%s.json"`, time.Now().Format("20060102-1504")))
+		fmt.Sprintf(`attachment; filename="MlClash-backup-%s.json"`, time.Now().Format("20060102-1504")))
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(b)

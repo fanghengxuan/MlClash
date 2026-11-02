@@ -3,6 +3,7 @@
 # 把涉及 /koolshare 下文件的操作放在子脚本里，避免被误判成「修改软件中心文件」。
 
 DATA=/koolshare/mihomo
+NEW_DATA=/koolshare/mlclash
 KB=0
 FREED=0
 
@@ -52,7 +53,7 @@ del() { # 描述 路径
 }
 
 FREE_BEFORE=$(df -k /jffs 2>/dev/null | awk 'NR==2 {print $4}')
-say "开始清理 mihomo 插件的历史残留"
+say "开始清理 MlClash（原 mihomo-merlin）插件的历史残留"
 say "PATH=$PATH"
 for c in rm du df ls; do
 	p=$(command -v "$c" 2>/dev/null)
@@ -72,24 +73,30 @@ mount 2>/dev/null | grep -E " /jffs | /koolshare " | sed 's/^/  mount: /'
 
 
 # 先停进程（旧版本可能在跑，文件被占用删不掉）
-if [ -x /koolshare/scripts/mihomo_ctl.sh ]; then
-	sh /koolshare/scripts/mihomo_ctl.sh stop >/dev/null 2>&1
-fi
+for ctl in /koolshare/scripts/mlclash_ctl.sh /koolshare/scripts/mihomo_ctl.sh; do
+	[ -x "$ctl" ] && sh "$ctl" stop >/dev/null 2>&1
+done
+killall -q mlclash-panel 2>/dev/null
 killall -q mihomo-panel 2>/dev/null
 killall -q mihomo 2>/dev/null
 sleep 1
+killall -q -9 mlclash-panel 2>/dev/null
 killall -q -9 mihomo-panel 2>/dev/null
 killall -q -9 mihomo 2>/dev/null
 
 # 清 iptables 残留（不清会断网）
-i=0
-while [ $i -lt 5 ]; do iptables -t nat -D PREROUTING -i br0 -j MIHOMO 2>/dev/null || break; i=$((i+1)); done
-iptables -t nat -F MIHOMO 2>/dev/null
-iptables -t nat -X MIHOMO 2>/dev/null
-i=0
-while [ $i -lt 5 ]; do iptables -t nat -D OUTPUT -j MIHOMO_OUT 2>/dev/null || break; i=$((i+1)); done
-iptables -t nat -F MIHOMO_OUT 2>/dev/null
-iptables -t nat -X MIHOMO_OUT 2>/dev/null
+for chain in MLCLASH MIHOMO; do
+	i=0
+	while [ $i -lt 5 ]; do iptables -t nat -D PREROUTING -i br0 -j "$chain" 2>/dev/null || break; i=$((i+1)); done
+	iptables -t nat -F "$chain" 2>/dev/null
+	iptables -t nat -X "$chain" 2>/dev/null
+done
+for chain in MLCLASH_OUT MIHOMO_OUT; do
+	i=0
+	while [ $i -lt 5 ]; do iptables -t nat -D OUTPUT -j "$chain" 2>/dev/null || break; i=$((i+1)); done
+	iptables -t nat -F "$chain" 2>/dev/null
+	iptables -t nat -X "$chain" 2>/dev/null
+done
 i=0
 while [ $i -lt 5 ]; do iptables -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null || break; i=$((i+1)); done
 i=0
@@ -107,11 +114,22 @@ del "自启软链 S99mihomo.sh" /koolshare/init.d/S99mihomo.sh
 del "自启软链 N99mihomo.sh" /koolshare/init.d/N99mihomo.sh
 del "旧日志 /tmp/mihomo-panel.log" /tmp/mihomo-panel.log
 del "旧日志 /tmp/mihomo.log" /tmp/mihomo.log
+del "MlClash 数据目录 /koolshare/mlclash" "$NEW_DATA"
+del "MlClash 面板 /koolshare/bin/mlclash-panel" /koolshare/bin/mlclash-panel
+del "MlClash 菜单页 /koolshare/webs/Module_mlclash.asp" /koolshare/webs/Module_mlclash.asp
+del "MlClash 图标 /koolshare/res/icon-mlclash.png" /koolshare/res/icon-mlclash.png
+del "MlClash 控制脚本 /koolshare/scripts/mlclash_ctl.sh" /koolshare/scripts/mlclash_ctl.sh
+del "MlClash 卸载脚本 /koolshare/scripts/uninstall_mlclash.sh" /koolshare/scripts/uninstall_mlclash.sh
+del "MlClash 自启软链 S99mlclash.sh" /koolshare/init.d/S99mlclash.sh
+del "MlClash 自启软链 N99mlclash.sh" /koolshare/init.d/N99mlclash.sh
+del "MlClash 旧日志 /tmp/mlclash-panel.log" /tmp/mlclash-panel.log
+del "MlClash 旧日志 /tmp/mlclash.log" /tmp/mlclash.log
 
 # 清掉旧版本的软件中心登记，避免重装时版本号/菜单残留
 if [ -x /koolshare/bin/dbus ]; then
 	for k in name title description version install; do
 		/koolshare/bin/dbus remove "softcenter_module_mihomo_${k}" 2>/dev/null
+		/koolshare/bin/dbus remove "softcenter_module_mlclash_${k}" 2>/dev/null
 	done
 fi
 
@@ -123,5 +141,5 @@ if [ "${FREE_BEFORE:-}" != "" ] && [ "$FREE" != "未知" ]; then
 	[ "$GAIN" -gt 0 ] && say "按 df 计算，jffs 增加了 ${GAIN}KB"
 fi
 say "清理完成：释放约 $((FREED / 1024)) MB（${FREED}KB），jffs 当前剩余 ${FREE:-未知}KB"
-say "现在可以到「软件中心 → 离线安装」装 mihomo_1.7.6_armv7_lite.tar.gz（解压约 9.7MB）"
-say "诊断日志：/tmp/mihomo-cleanup.log（如需反馈请贴这段）"
+say "现在可以到「软件中心 → 离线安装」装 MlClash_3.0.0_armv7_koolshare.tar.gz"
+say "诊断日志：/tmp/mlclash-cleanup.log（如需反馈请贴这段）"

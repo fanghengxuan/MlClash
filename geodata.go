@@ -174,7 +174,7 @@ func (a *App) fetchGeoBytesLimit(src string, max int64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "mihomo-merlin-panel/"+panelVersion)
+	req.Header.Set("User-Agent", "MlClash/"+panelVersion)
 	resp, err := a.newHTTPClient(false, insecure).Do(req)
 	if err != nil {
 		return nil, describeNetErr(err, src)

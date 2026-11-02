@@ -1132,7 +1132,7 @@
   function doExport(btn, show) {
     MM.ui.setBusy(btn, true);
     MM.api('/api/backup').then(function (data) {
-      var name = 'mihomo-merlin-backup-' + MM.fmt.date(Date.now() / 1000).replace(/-/g, '') + '-' +
+      var name = 'MlClash-backup-' + MM.fmt.date(Date.now() / 1000).replace(/-/g, '') + '-' +
         MM.fmt.clock().replace(/:/g, '') + '.json';
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -1786,7 +1786,7 @@
     var p = (st.status && st.status.panel) || {};
     var c = q.checks || {};
     var lines = [
-      'mihomo-merlin 诊断信息',
+      'MlClash 诊断信息',
       '生成时间：' + MM.fmt.time(Date.now() / 1000),
       '面板版本：' + (p.version ? 'v' + p.version : MM.VERSION),
       '平台：' + (p.platform || '—'),

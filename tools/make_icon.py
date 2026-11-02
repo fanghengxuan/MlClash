@@ -2,7 +2,7 @@
 """生成插件图标：深色圆角底 + 渐变六边形 + 白色几何 M。
 
 产出：
-  plugin/res/icon-mihomo.png   96x96（软件中心菜单图标）
+  plugin/res/icon-mlclash.png   96x96（软件中心菜单图标）
   web/icon-256.png             256x256（面板 favicon / 触屏图标）
   docs/icon-preview.png        512x512（文档用）
 
@@ -95,7 +95,7 @@ def make(size):
 
 def main():
     targets = [
-        ("plugin/res/icon-mihomo.png", 96),
+        ("plugin/res/icon-mlclash.png", 96),
         ("web/icon-256.png", 256),
         ("docs/icon-preview.png", 512),
     ]

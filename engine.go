@@ -16,6 +16,14 @@ import (
 	"time"
 )
 
+// iptables nat 链名。MIHOMO* 是 2.x 的旧链，升级时通过 cleanupLegacyIptables 清理。
+const (
+	natChain       = "MLCLASH"
+	outChain       = "MLCLASH_OUT"
+	legacyNatChain = "MIHOMO"
+	legacyOutChain = "MIHOMO_OUT"
+)
+
 // Engine 负责 mihomo 进程生命周期与 iptables 透明代理规则。
 type Engine struct {
 	app *App
@@ -117,7 +125,7 @@ func (e *Engine) Applied() bool {
 // applied 只是内存状态：防火墙重启会清掉链，但不会通知面板；
 // 看门狗必须实测，否则永远不会发现规则被重置。
 func (e *Engine) rulesPresent() bool {
-	if os.Getenv("MM_NO_IPTABLES") == "1" {
+	if os.Getenv("MLCLASH_NO_IPTABLES") == "1" {
 		return true
 	}
 	e.app.mu.RLock()
@@ -127,10 +135,10 @@ func (e *Engine) rulesPresent() bool {
 	if lanIf == "" {
 		lanIf = "br0"
 	}
-	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", "MIHOMO"); err != nil {
+	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", natChain); err != nil {
 		return false
 	}
-	return e.ipt("-t", "nat", "-C", "MIHOMO", "-p", "tcp", "-j", "REDIRECT",
+	return e.ipt("-t", "nat", "-C", natChain, "-p", "tcp", "-j", "REDIRECT",
 		"--to-ports", itoa(s.RedirPort)) == nil
 }
 
@@ -853,28 +861,45 @@ func (e *Engine) ipt(args ...string) error {
 	return nil
 }
 
-// parseMihomoPreroutingIfaces 从 `iptables -t nat -S PREROUTING` 输出里
-// 找出所有跳到 MIHOMO 的接口。切换 lanIf 后旧接口的跳转不会自己消失，
+// parsePreroutingIfaces 从 `iptables -t nat -S PREROUTING` 输出里
+// 找出所有跳到指定链的接口。切换 lanIf 后旧接口的跳转不会自己消失，
 // 必须按实际现状清理，否则新设置根本没生效。
-func parseMihomoPreroutingIfaces(out string) []string {
+func parsePreroutingIfaces(out, chain string) []string {
 	var ifaces []string
 	for _, line := range strings.Split(out, "\n") {
 		f := strings.Fields(line)
 		if len(f) == 6 && f[0] == "-A" && f[1] == "PREROUTING" &&
-			f[2] == "-i" && f[4] == "-j" && f[5] == "MIHOMO" {
+			f[2] == "-i" && f[4] == "-j" && f[5] == chain {
 			ifaces = append(ifaces, f[3])
 		}
 	}
 	return ifaces
 }
 
-// preroutingMihomoIfaces 实测当前 nat PREROUTING 里的 MIHOMO 跳转接口。
-func (e *Engine) preroutingMihomoIfaces() []string {
+// preroutingIfaces 实测当前 nat PREROUTING 里跳到指定链的接口。
+func (e *Engine) preroutingIfaces(chain string) []string {
 	out, err := run(8*time.Second, iptablesBin(), "-t", "nat", "-S", "PREROUTING")
 	if err != nil {
 		return nil
 	}
-	return parseMihomoPreroutingIfaces(out)
+	return parsePreroutingIfaces(out, chain)
+}
+
+// cleanupLegacyIptables 移除 2.x 留下的 MIHOMO/MIHOMO_OUT 跳转与链。
+// 升级到 MlClash 3.0 后第一次启动/清理时调用，避免旧链继续劫持流量。
+func (e *Engine) cleanupLegacyIptables() {
+	for _, iface := range e.preroutingIfaces(legacyNatChain) {
+		_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", legacyNatChain)
+	}
+	for i := 0; i < 5; i++ {
+		if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", legacyOutChain); err != nil {
+			break
+		}
+	}
+	_ = e.ipt("-t", "nat", "-F", legacyNatChain)
+	_ = e.ipt("-t", "nat", "-X", legacyNatChain)
+	_ = e.ipt("-t", "nat", "-F", legacyOutChain)
+	_ = e.ipt("-t", "nat", "-X", legacyOutChain)
 }
 
 var (
@@ -957,7 +982,7 @@ func (e *Engine) ApplyIptables() error {
 		return nil
 	}
 
-	if os.Getenv("MM_NO_IPTABLES") == "1" {
+	if os.Getenv("MLCLASH_NO_IPTABLES") == "1" {
 		e.mu.Lock()
 		e.applied = true
 		e.lastApply = time.Now().Unix()
@@ -965,14 +990,17 @@ func (e *Engine) ApplyIptables() error {
 		return nil
 	}
 
+	// 升级到 3.0 后先清掉 2.x 的 MIHOMO 链，避免旧跳转继续劫持流量。
+	e.cleanupLegacyIptables()
+
 	s := e.app.settings
 	lanIf := s.LanIf
 	if lanIf == "" {
 		lanIf = "br0"
 	}
 
-	_ = e.ipt("-t", "nat", "-N", "MIHOMO")
-	_ = e.ipt("-t", "nat", "-F", "MIHOMO")
+	_ = e.ipt("-t", "nat", "-N", natChain)
+	_ = e.ipt("-t", "nat", "-F", natChain)
 
 	bypass := []string{
 		"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16",
@@ -982,23 +1010,23 @@ func (e *Engine) ApplyIptables() error {
 		bypass = append(bypass, ip+"/32")
 	}
 	for _, cidr := range bypass {
-		if err := e.ipt("-t", "nat", "-A", "MIHOMO", "-d", cidr, "-j", "RETURN"); err != nil {
+		if err := e.ipt("-t", "nat", "-A", natChain, "-d", cidr, "-j", "RETURN"); err != nil {
 			return err
 		}
 	}
-	if err := e.ipt("-t", "nat", "-A", "MIHOMO", "-p", "tcp", "-j", "REDIRECT", "--to-ports", itoa(s.RedirPort)); err != nil {
+	if err := e.ipt("-t", "nat", "-A", natChain, "-p", "tcp", "-j", "REDIRECT", "--to-ports", itoa(s.RedirPort)); err != nil {
 		return err
 	}
 
-	// 切换过 lanIf 时先拆掉旧接口的跳转，否则旧规则仍然把流量送进 MIHOMO，
+	// 切换过 lanIf 时先拆掉旧接口的跳转，否则旧规则仍然把流量送进 MLCLASH，
 	// 面板显示已换接口、实际转发路径没变。
-	for _, iface := range e.preroutingMihomoIfaces() {
+	for _, iface := range e.preroutingIfaces(natChain) {
 		if iface != lanIf {
-			_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", "MIHOMO")
+			_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", natChain)
 		}
 	}
-	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", "MIHOMO"); err != nil {
-		if err := e.ipt("-t", "nat", "-I", "PREROUTING", "1", "-i", lanIf, "-j", "MIHOMO"); err != nil {
+	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", natChain); err != nil {
+		if err := e.ipt("-t", "nat", "-I", "PREROUTING", "1", "-i", lanIf, "-j", natChain); err != nil {
 			return err
 		}
 	}
@@ -1022,23 +1050,23 @@ func (e *Engine) ApplyIptables() error {
 
 	// 可选：代理路由器自身流量（experimental）
 	if s.RouterSelf {
-		_ = e.ipt("-t", "nat", "-N", "MIHOMO_OUT")
-		_ = e.ipt("-t", "nat", "-F", "MIHOMO_OUT")
+		_ = e.ipt("-t", "nat", "-N", outChain)
+		_ = e.ipt("-t", "nat", "-F", outChain)
 		for _, cidr := range bypass {
-			_ = e.ipt("-t", "nat", "-A", "MIHOMO_OUT", "-d", cidr, "-j", "RETURN")
+			_ = e.ipt("-t", "nat", "-A", outChain, "-d", cidr, "-j", "RETURN")
 		}
-		_ = e.ipt("-t", "nat", "-A", "MIHOMO_OUT", "-p", "tcp", "-j", "REDIRECT", "--to-ports", itoa(s.RedirPort))
-		if err := e.ipt("-t", "nat", "-C", "OUTPUT", "-j", "MIHOMO_OUT"); err != nil {
-			_ = e.ipt("-t", "nat", "-I", "OUTPUT", "1", "-j", "MIHOMO_OUT")
+		_ = e.ipt("-t", "nat", "-A", outChain, "-p", "tcp", "-j", "REDIRECT", "--to-ports", itoa(s.RedirPort))
+		if err := e.ipt("-t", "nat", "-C", "OUTPUT", "-j", outChain); err != nil {
+			_ = e.ipt("-t", "nat", "-I", "OUTPUT", "1", "-j", outChain)
 		}
 	} else {
 		for i := 0; i < 5; i++ {
-			if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", "MIHOMO_OUT"); err != nil {
+			if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", outChain); err != nil {
 				break
 			}
 		}
-		_ = e.ipt("-t", "nat", "-F", "MIHOMO_OUT")
-		_ = e.ipt("-t", "nat", "-X", "MIHOMO_OUT")
+		_ = e.ipt("-t", "nat", "-F", outChain)
+		_ = e.ipt("-t", "nat", "-X", outChain)
 	}
 
 	e.mu.Lock()
@@ -1053,25 +1081,26 @@ func (e *Engine) ClearIptables() error {
 	e.iptMu.Lock()
 	defer e.iptMu.Unlock()
 
-	if os.Getenv("MM_NO_IPTABLES") == "1" {
+	if os.Getenv("MLCLASH_NO_IPTABLES") == "1" {
 		e.mu.Lock()
 		e.applied = false
 		e.mu.Unlock()
 		return nil
 	}
 	// 按实际存在的跳转逐个删除，避免只清理当前 lanIf、把历史接口的规则留下来。
-	for _, iface := range e.preroutingMihomoIfaces() {
-		_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", "MIHOMO")
+	for _, iface := range e.preroutingIfaces(natChain) {
+		_ = e.ipt("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", natChain)
 	}
 	for i := 0; i < 5; i++ {
-		if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", "MIHOMO_OUT"); err != nil {
+		if err := e.ipt("-t", "nat", "-D", "OUTPUT", "-j", outChain); err != nil {
 			break
 		}
 	}
-	_ = e.ipt("-t", "nat", "-F", "MIHOMO")
-	_ = e.ipt("-t", "nat", "-X", "MIHOMO")
-	_ = e.ipt("-t", "nat", "-F", "MIHOMO_OUT")
-	_ = e.ipt("-t", "nat", "-X", "MIHOMO_OUT")
+	_ = e.ipt("-t", "nat", "-F", natChain)
+	_ = e.ipt("-t", "nat", "-X", natChain)
+	_ = e.ipt("-t", "nat", "-F", outChain)
+	_ = e.ipt("-t", "nat", "-X", outChain)
+	e.cleanupLegacyIptables()
 	_ = e.ipt("-D", "FORWARD", "-p", "udp", "--dport", "443", "-j", "REJECT")
 	for i := 0; i < 3; i++ {
 		if err := e.ipt("-t", "mangle", "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",

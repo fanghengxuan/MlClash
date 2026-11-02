@@ -1,14 +1,14 @@
 #!/bin/sh
-# mihomo 面板 / 内核控制脚本（兼容 asuswrt busybox ash）
-# 用法：mihomo_ctl.sh {start|stop|restart|status}
+# MlClash 面板 / 内核控制脚本（兼容 asuswrt busybox ash）
+# 用法：mlclash_ctl.sh {start|stop|restart|status}
 
 # 自己设 PATH：/bin 在 /sbin 之前，避免把固件里的同名工具当成 shell
 PATH=/koolshare/bin:/bin:/usr/bin:/sbin:/usr/sbin
 export PATH
 
-PANEL_BIN=/koolshare/bin/mihomo-panel
+PANEL_BIN=/koolshare/bin/mlclash-panel
 MIHOMO_BIN=/koolshare/bin/mihomo
-DATA_DIR=/koolshare/mihomo
+DATA_DIR=/koolshare/mlclash
 LOG_FILE=$DATA_DIR/logs/panel.log
 PORT=9380
 
@@ -39,7 +39,7 @@ find_pid_by_name() {
 	return 1
 }
 
-panel_pid() { find_pid_by_name mihomo-panel; }
+panel_pid() { find_pid_by_name mlclash-panel; }
 WATCH_PID="$DATA_DIR/panel-watchdog.pid"
 
 # 守护进程：面板挂了就拉起来（面板自己会按 enabled 标记决定是否启动内核）
@@ -109,20 +109,24 @@ start() {
 cleanup_iptables() {
 	LANIF=$(nvram get lan_ifname 2>/dev/null)
 	[ -n "$LANIF" ] || LANIF=br0
-	i=0
-	while [ $i -lt 5 ]; do
-		iptables -t nat -D PREROUTING -i "$LANIF" -j MIHOMO 2>/dev/null || break
-		i=$((i + 1))
+	for chain in MLCLASH MIHOMO; do
+		i=0
+		while [ $i -lt 5 ]; do
+			iptables -t nat -D PREROUTING -i "$LANIF" -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		iptables -t nat -F "$chain" 2>/dev/null
+		iptables -t nat -X "$chain" 2>/dev/null
 	done
-	i=0
-	while [ $i -lt 5 ]; do
-		iptables -t nat -D OUTPUT -j MIHOMO_OUT 2>/dev/null || break
-		i=$((i + 1))
+	for chain in MLCLASH_OUT MIHOMO_OUT; do
+		i=0
+		while [ $i -lt 5 ]; do
+			iptables -t nat -D OUTPUT -j "$chain" 2>/dev/null || break
+			i=$((i + 1))
+		done
+		iptables -t nat -F "$chain" 2>/dev/null
+		iptables -t nat -X "$chain" 2>/dev/null
 	done
-	iptables -t nat -F MIHOMO 2>/dev/null
-	iptables -t nat -X MIHOMO 2>/dev/null
-	iptables -t nat -F MIHOMO_OUT 2>/dev/null
-	iptables -t nat -X MIHOMO_OUT 2>/dev/null
 	iptables -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null
 }
 

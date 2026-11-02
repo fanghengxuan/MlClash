@@ -733,7 +733,7 @@ func TestNextRestartAt(t *testing.T) {
 }
 
 func TestCheckScheduledRestart(t *testing.T) {
-	t.Setenv("MM_NO_IPTABLES", "1") // 测试环境不要真的碰防火墙
+	t.Setenv("MLCLASH_NO_IPTABLES", "1") // 测试环境不要真的碰防火墙
 
 	a := newBackendTestApp(t)
 	a.engine.running = true // 只让 Running() 为真，调度器才会继续检查

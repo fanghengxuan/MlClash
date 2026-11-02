@@ -1,5 +1,5 @@
 #!/bin/sh
-# mihomo-merlin 构建脚本：交叉编译面板 + 拉取内核/规则 + 打包成软件中心可安装的 tar.gz
+# MlClash 构建脚本：交叉编译面板 + 拉取内核/规则 + 打包成软件中心可安装的 tar.gz
 #
 # 用法：
 #   ./build.sh                        # 完整打包（armv7，自动下载 fork 的 slim 内核）
@@ -32,7 +32,7 @@ ROOT=$(cd "$(dirname "$0")" && pwd)
 CACHE="$ROOT/.cache"
 DIST="$ROOT/dist"
 STAGE="$DIST/stage"
-PKG="mihomo-merlin_${VERSION}_armv7_koolshare"
+PKG="MlClash_${VERSION}_armv7_koolshare"
 if [ "${NOKERNEL:-0}" = "1" ]; then
 	PKG="${PKG}_nokernel"
 fi
@@ -84,65 +84,65 @@ fetch_rules() {
 build_panel() {
 	echo ">>> 交叉编译面板 (linux/arm GOARM=7)"
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
-		"$GO" build -trimpath -ldflags "-s -w" -o "$CACHE/mihomo-panel-linux-armv7" .
+		"$GO" build -trimpath -ldflags "-s -w" -o "$CACHE/mlclash-panel-linux-armv7" .
 		if [ "${PANEL_UPX:-0}" = "1" ] && command -v upx >/dev/null 2>&1; then
-			cp -f "$CACHE/mihomo-panel-linux-armv7" "$CACHE/mihomo-panel-linux-armv7.upx"
-			if upx --best --lzma "$CACHE/mihomo-panel-linux-armv7.upx" >/dev/null 2>&1; then
-				mv "$CACHE/mihomo-panel-linux-armv7.upx" "$CACHE/mihomo-panel-linux-armv7"
+			cp -f "$CACHE/mlclash-panel-linux-armv7" "$CACHE/mlclash-panel-linux-armv7.upx"
+			if upx --best --lzma "$CACHE/mlclash-panel-linux-armv7.upx" >/dev/null 2>&1; then
+				mv "$CACHE/mlclash-panel-linux-armv7.upx" "$CACHE/mlclash-panel-linux-armv7"
 				echo ">>> 面板已用 UPX 压缩（启动时占用更多内存）"
 			else
-				rm -f "$CACHE/mihomo-panel-linux-armv7.upx"
+				rm -f "$CACHE/mlclash-panel-linux-armv7.upx"
 				echo ">>> UPX 压缩失败，使用未压缩面板"
 			fi
 		fi
 	if command -v file >/dev/null 2>&1; then
-		file "$CACHE/mihomo-panel-linux-armv7"
+		file "$CACHE/mlclash-panel-linux-armv7"
 	fi
 }
 
 build_dev() {
 	echo ">>> 编译本机调试版本"
-	"$GO" build -o "$CACHE/mihomo-panel-local" .
+	"$GO" build -o "$CACHE/mlclash-panel-local" .
 }
 
 stage_package() {
 	rm -rf "$STAGE"
-	mkdir -p "$STAGE/mihomo/bin" "$STAGE/mihomo/rules" "$STAGE/mihomo/scripts" "$STAGE/mihomo/webs" "$STAGE/mihomo/res"
-	cp -f "$ROOT/plugin/install.sh" "$STAGE/mihomo/"
-	cp -f "$ROOT/plugin/uninstall.sh" "$STAGE/mihomo/"
-	cp -f "$ROOT/plugin/version" "$STAGE/mihomo/"
+	mkdir -p "$STAGE/mlclash/bin" "$STAGE/mlclash/rules" "$STAGE/mlclash/scripts" "$STAGE/mlclash/webs" "$STAGE/mlclash/res"
+	cp -f "$ROOT/plugin/install.sh" "$STAGE/mlclash/"
+	cp -f "$ROOT/plugin/uninstall.sh" "$STAGE/mlclash/"
+	cp -f "$ROOT/plugin/version" "$STAGE/mlclash/"
 	# 软件中心靠这个标记判断离线包是不是 hnd 平台，缺了会直接拒绝安装
-	printf 'hnd\n' > "$STAGE/mihomo/.valid"
-	printf 'armv7l\n' > "$STAGE/mihomo/arch"
-	cp -f "$ROOT"/plugin/scripts/* "$STAGE/mihomo/scripts/"
-	cp -f "$ROOT/plugin/webs/Module_mihomo.asp" "$STAGE/mihomo/webs/"
-	cp -f "$ROOT/plugin/res/icon-mihomo.png" "$STAGE/mihomo/res/"
+	printf 'hnd\n' > "$STAGE/mlclash/.valid"
+	printf 'armv7l\n' > "$STAGE/mlclash/arch"
+	cp -f "$ROOT"/plugin/scripts/* "$STAGE/mlclash/scripts/"
+	cp -f "$ROOT/plugin/webs/Module_mlclash.asp" "$STAGE/mlclash/webs/"
+	cp -f "$ROOT/plugin/res/icon-mlclash.png" "$STAGE/mlclash/res/"
 	if [ "${NOKERNEL:-0}" = "1" ]; then
-		rm -f "$STAGE/mihomo/bin/mihomo"
+		rm -f "$STAGE/mlclash/bin/mihomo"
 	else
-		cp -f "$KERNEL_BIN" "$STAGE/mihomo/bin/mihomo"
+		cp -f "$KERNEL_BIN" "$STAGE/mlclash/bin/mihomo"
 	fi
-	cp -f "$CACHE/mihomo-panel-linux-armv7" "$STAGE/mihomo/bin/mihomo-panel"
-	cp -f "$CACHE/chnroute.txt" "$STAGE/mihomo/rules/chnroute.txt"
-	chmod 755 "$STAGE/mihomo/install.sh" "$STAGE/mihomo/uninstall.sh" "$STAGE/mihomo/scripts/"*.sh
-	chmod 644 "$STAGE/mihomo/version" "$STAGE/mihomo/.valid" "$STAGE/mihomo/arch" "$STAGE/mihomo/webs/Module_mihomo.asp" "$STAGE/mihomo/res/icon-mihomo.png"
-	chmod 755 "$STAGE/mihomo/bin/mihomo-panel"
-	if [ -f "$STAGE/mihomo/bin/mihomo" ]; then chmod 755 "$STAGE/mihomo/bin/mihomo"; fi
+	cp -f "$CACHE/mlclash-panel-linux-armv7" "$STAGE/mlclash/bin/mlclash-panel"
+	cp -f "$CACHE/chnroute.txt" "$STAGE/mlclash/rules/chnroute.txt"
+	chmod 755 "$STAGE/mlclash/install.sh" "$STAGE/mlclash/uninstall.sh" "$STAGE/mlclash/scripts/"*.sh
+	chmod 644 "$STAGE/mlclash/version" "$STAGE/mlclash/.valid" "$STAGE/mlclash/arch" "$STAGE/mlclash/webs/Module_mlclash.asp" "$STAGE/mlclash/res/icon-mlclash.png"
+	chmod 755 "$STAGE/mlclash/bin/mlclash-panel"
+	if [ -f "$STAGE/mlclash/bin/mihomo" ]; then chmod 755 "$STAGE/mlclash/bin/mihomo"; fi
 }
 
 pack() {
 	echo ">>> 打包 $PKG.tar.gz"
-	( cd "$STAGE" && tar czf "$DIST/$PKG.tar.gz" mihomo )
+	( cd "$STAGE" && tar czf "$DIST/$PKG.tar.gz" mlclash )
 	( cd "$DIST" && shasum -a 256 "$PKG.tar.gz" > "$PKG.tar.gz.sha256" 2>/dev/null || sha256sum "$PKG.tar.gz" > "$PKG.tar.gz.sha256" )
 	echo
 	echo "===================================================="
 	ls -lh "$DIST/$PKG.tar.gz"
 	cat "$DIST/$PKG.tar.gz.sha256"
-	if [ -f "$STAGE/mihomo/bin/mihomo" ]; then
-		echo "包内内核：$(wc -c < "$STAGE/mihomo/bin/mihomo") 字节  面板：$(wc -c < "$STAGE/mihomo/bin/mihomo-panel") 字节"
+	if [ -f "$STAGE/mlclash/bin/mihomo" ]; then
+		echo "包内内核：$(wc -c < "$STAGE/mlclash/bin/mihomo") 字节  面板：$(wc -c < "$STAGE/mlclash/bin/mlclash-panel") 字节"
 	else
 		echo "包内不含内核（安装后在面板「设置 → mihomo 内核 → 检查更新」下载，或手动上传）"
-		echo "面板：$(wc -c < "$STAGE/mihomo/bin/mihomo-panel") 字节"
+		echo "面板：$(wc -c < "$STAGE/mlclash/bin/mlclash-panel") 字节"
 	fi
 	UNPACK_KB=$(du -sk "$STAGE" 2>/dev/null | awk '{print $1}')
 	NEED_KB=$(( UNPACK_KB + 2048 ))

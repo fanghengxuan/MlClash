@@ -1,7 +1,7 @@
 #!/bin/sh
 # 只读诊断：不改任何东西，把关键信息打到安装日志里
 L() { echo "【$(TZ=UTC-8 date '+%Y%m%d %X')】: $*"; }
-L "================ mihomo 插件诊断 ================"
+L "================ MlClash 插件诊断 ================"
 L "机型：$(nvram get productid 2>/dev/null)  固件：$(nvram get buildno 2>/dev/null) / $(nvram get extendno 2>/dev/null)"
 L "内核：$(uname -a 2>/dev/null)"
 echo
@@ -27,26 +27,36 @@ echo
 L "--- /koolshare 各目录占用（KB，从大到小） ---"
 du -sk /koolshare/* 2>/dev/null | sort -n | tail -25 | sed 's/^/    /'
 echo
-L "--- /koolshare/mihomo 明细 ---"
-du -sk /koolshare/mihomo/* 2>/dev/null | sort -n | sed 's/^/    /'
-ls -la /koolshare/mihomo/kernel 2>/dev/null | sed 's/^/    /'
+L "--- 数据目录明细（MlClash 与旧版） ---"
+for d in /koolshare/mlclash /koolshare/mihomo; do
+	[ -d "$d" ] || continue
+	L "  [$d]"
+	du -sk "$d"/* 2>/dev/null | sort -n | sed 's/^/    /'
+	ls -la "$d/kernel" 2>/dev/null | sed 's/^/    /'
+done
 echo
 L "--- /koolshare/bin 内容 ---"
 ls -la /koolshare/bin 2>/dev/null | sed 's/^/    /'
 echo
 L "--- mihomo 相关文件 ---"
-for f in /koolshare/bin/mihomo /koolshare/bin/mihomo-panel /koolshare/webs/Module_mihomo.asp /koolshare/res/icon-mihomo.png /koolshare/scripts/mihomo_ctl.sh /koolshare/scripts/uninstall_mihomo.sh /koolshare/init.d/S99mihomo.sh /koolshare/init.d/N99mihomo.sh; do
+for f in /koolshare/bin/mihomo /koolshare/bin/mlclash-panel /koolshare/bin/mihomo-panel \
+	/koolshare/webs/Module_mlclash.asp /koolshare/webs/Module_mihomo.asp \
+	/koolshare/res/icon-mlclash.png /koolshare/res/icon-mihomo.png \
+	/koolshare/scripts/mlclash_ctl.sh /koolshare/scripts/mihomo_ctl.sh \
+	/koolshare/scripts/uninstall_mlclash.sh /koolshare/scripts/uninstall_mihomo.sh \
+	/koolshare/init.d/S99mlclash.sh /koolshare/init.d/N99mlclash.sh \
+	/koolshare/init.d/S99mihomo.sh /koolshare/init.d/N99mihomo.sh; do
 	if [ -e "$f" ] || [ -L "$f" ]; then L "  存在 ${f}（$(wc -c < "$f" 2>/dev/null || echo '?') 字节）"; else L "  缺失 ${f}"; fi
 done
 echo
 L "--- 进程 ---"
 pidof mihomo 2>/dev/null | sed 's/^/    mihomo pid: /'
-pidof mihomo-panel 2>/dev/null | sed 's/^/    panel pid: /'
-ps w 2>/dev/null | grep -E "mihomo" | grep -v grep | sed 's/^/    /'
+pidof mlclash-panel 2>/dev/null | sed 's/^/    panel pid: /'
+ps w 2>/dev/null | grep -E "mihomo|mlclash" | grep -v grep | sed 's/^/    /'
 echo
 L "--- iptables 残留 ---"
 iptables -t nat -L PREROUTING -n 2>/dev/null | head -8 | sed 's/^/    /'
-iptables -t nat -L MIHOMO -n 2>/dev/null | head -5 | sed 's/^/    /'
+iptables -t nat -L MLCLASH -n 2>/dev/null | head -5 | sed 's/^/    /'
 echo
 L "--- jffs2 状态（是否被大量废弃节点占满） ---"
 cat /proc/mtd 2>/dev/null | sed 's/^/    /'
