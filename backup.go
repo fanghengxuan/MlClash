@@ -138,6 +138,9 @@ func (a *App) restoreBackup(b *BackupBundle) error {
 	}
 
 	a.addLog("info", fmt.Sprintf("已从备份恢复：%d 个订阅、%d 份节点文件", len(subs), len(b.Providers)))
+	if s.AdBlock && !a.antiAdReady() {
+		a.ensureAntiAdAsync()
+	}
 	if a.engine.Running() {
 		return a.appReload()
 	}

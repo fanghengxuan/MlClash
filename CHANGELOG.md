@@ -1,5 +1,17 @@
 # 更新记录
 
+## 3.1.0（2026-11-03）
+
+- **去广告合并为单一开关**：优先使用 anti-AD `mihomo.mrs`（约 10 万条域名，约 0.85MB），
+  并保留内置 `category-ads-all` 兜底/补漏；关闭时两条规则一起移除
+- anti-AD 列表跟随 `ruleAutoUpdate` / `ruleIntervalH` 自动更新（默认 24h），
+  也支持规则页「立即更新」；官方源失败自动回退 raw / jsDelivr
+- 规则页显示 anti-AD 列表状态（大小、更新时间）；默认关闭，避免 10 万条列表误杀
+- 国内直连新增 `GEOSITE,apple-cn,DIRECT` / `GEOSITE,google-cn,DIRECT`（零额外下载）
+- 修复设置页异步加载竞态：设置后到齐时控件可能仍显示旧值，保存时会把旧值写回
+- 真机验证：anti-AD 852.5KB，`gdt.qq.com`/`pangle.cn`/`doubleclick.net` REJECT，
+  baidu/bilibili/Google 正常；引擎内存约 62MB，jffs 可用 23.7MB
+
 ## 3.0.0（2026-11-02）
 
 **全量改名：mihomo-merlin → MlClash**（3.0.0 是破坏性版本，安装器会自动迁移）

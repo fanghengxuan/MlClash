@@ -221,28 +221,48 @@ func (a *App) BuildConfig() (map[string]any, error) {
 
 	// 规则
 	var rules []any
-	// 去广告必须排在最前：广告域命中 REJECT 后再走直连/代理判断。
-	// 只在规则模式生效；geosite.dat 未就绪时先不加，下载完成后会自动热重载。
-	if s.Mode == "rule" && s.AdBlock && a.geoSiteReady() {
-		rules = append(rules, "GEOSITE,category-ads-all,REJECT")
+	var ruleProviders map[string]any
+	// 去广告（单一开关）：优先 anti-AD 增强列表，未就绪时用内置 category-ads-all 兜底；
+	// 两者都就绪时合并，确保 anti-AD 未覆盖的旧域名仍被拦截。
+	if s.Mode == "rule" && s.AdBlock {
+		if a.antiAdReady() {
+			ruleProviders = map[string]any{
+				"anti-ad": map[string]any{
+					"type":     "file",
+					"behavior": "domain",
+					"format":   "mrs",
+					"path":     a.antiAdPath(),
+				},
+			}
+			rules = append(rules, "RULE-SET,anti-ad,REJECT")
+		}
+		if a.geoSiteReady() {
+			rules = append(rules, "GEOSITE,category-ads-all,REJECT")
+		}
 	}
 	if s.RulePreset == "cn-direct" {
 		// 域名优先：国内域名解析到海外 CDN IP 时（境外 DoH/ECS 很常见），
 		// 只看 IP 会误判成代理；geosite,cn 按域名先直连，和 FlClash 一致。
 		if a.geoSiteReady() {
-			rules = append(rules, "GEOSITE,cn,DIRECT")
+			rules = append(rules,
+				"GEOSITE,cn,DIRECT",
+				// Apple / Google 中国域名在 geolocation-!cn 里，单独直连可避免走代理。
+				"GEOSITE,apple-cn,DIRECT",
+				"GEOSITE,google-cn,DIRECT",
+			)
 		}
 		// 可选：country.mmdb 的 GEOIP,CN（默认关闭，用户可在规则页开启）。
 		if s.GeoIPEnable && a.geoIPReady() {
 			rules = append(rules, "GEOIP,CN,DIRECT")
 		}
 		if a.ensureRuleProviderYAML() {
-			cfg["rule-providers"] = map[string]any{
-				"cn-ip": map[string]any{
-					"type":     "file",
-					"behavior": "ipcidr",
-					"path":     a.ruleProviderPath(),
-				},
+			if ruleProviders == nil {
+				ruleProviders = map[string]any{}
+			}
+			ruleProviders["cn-ip"] = map[string]any{
+				"type":     "file",
+				"behavior": "ipcidr",
+				"path":     a.ruleProviderPath(),
 			}
 			rules = append(rules, "RULE-SET,cn-ip,DIRECT")
 		}
@@ -252,6 +272,9 @@ func (a *App) BuildConfig() (map[string]any, error) {
 			"IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
 			"IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
 		)
+	}
+	if len(ruleProviders) > 0 {
+		cfg["rule-providers"] = ruleProviders
 	}
 	if s.Mode == "direct" {
 		rules = append(rules, "MATCH,DIRECT")

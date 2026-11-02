@@ -39,7 +39,10 @@ var (
 	geoASNURL  = "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb"
 )
 
-var reGeoSiteRecords = regexp.MustCompile(`records:\s*(\d+)`)
+var (
+	reGeoSiteRecords   = regexp.MustCompile(`records:\s*(\d+)`)
+	reGeoSiteCNRecords = regexp.MustCompile(`rule cn => DIRECT, records:\s*(\d+)`)
+)
 
 // GeoDataMeta 是 geosite.dat 的现状，展示在规则页。
 type GeoDataMeta struct {
@@ -138,7 +141,7 @@ func (a *App) geoSiteDue() bool {
 	return time.Since(time.Unix(ts, 0)) >= time.Duration(hours)*time.Hour
 }
 
-// validateGeoSite 用最小配置让内核真正加载 GEOSITE,cn，确认文件可用。
+// validateGeoSite 用最小配置让内核真正加载我们依赖的 geosite 标签，确认文件可用。
 func (a *App) validateGeoSite() (int, error) {
 	probe := map[string]any{
 		"mixed-port":          0,
@@ -148,7 +151,13 @@ func (a *App) validateGeoSite() (int, error) {
 		"log-level":           "error",
 		"external-controller": "127.0.0.1:19099",
 		"geodata-loader":      "memconservative",
-		"rules":               []any{"GEOSITE,cn,DIRECT", "MATCH,DIRECT"},
+		"rules": []any{
+			"GEOSITE,cn,DIRECT",
+			"GEOSITE,apple-cn,DIRECT",
+			"GEOSITE,google-cn,DIRECT",
+			"GEOSITE,category-ads-all,REJECT",
+			"MATCH,DIRECT",
+		},
 	}
 	probePath := a.geoSiteProbePath()
 	defer os.Remove(probePath)
@@ -160,7 +169,9 @@ func (a *App) validateGeoSite() (int, error) {
 		return 0, fmt.Errorf("geosite.dat 校验失败：%s", tail(out, 400))
 	}
 	count := 0
-	if m := reGeoSiteRecords.FindStringSubmatch(out); m != nil {
+	if m := reGeoSiteCNRecords.FindStringSubmatch(out); m != nil {
+		count, _ = atoiSafe(m[1])
+	} else if m := reGeoSiteRecords.FindStringSubmatch(out); m != nil {
 		count, _ = atoiSafe(m[1])
 	}
 	return count, nil

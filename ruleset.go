@@ -270,6 +270,13 @@ func (a *App) ruleScheduler() {
 				changed = true
 			}
 		}
+		if a.antiAdDue() {
+			if err := a.EnsureAntiAd(true); err != nil {
+				a.addLog("warn", "自动更新增强广告规则失败："+err.Error())
+			} else {
+				changed = true
+			}
+		}
 		if changed && a.engine.Running() {
 			_ = a.appReload()
 		}

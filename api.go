@@ -279,6 +279,9 @@ func (a *App) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if s.GeoIPEnable && !a.geoIPReady() {
 		a.ensureGeoIPAsync()
 	}
+	if s.AdBlock && !a.antiAdReady() {
+		a.ensureAntiAdAsync()
+	}
 	if err != nil {
 		writeErr(w, 500, "保存设置失败："+err.Error())
 		return
@@ -1476,6 +1479,7 @@ func (a *App) handleRuleSetInfo(w http.ResponseWriter, r *http.Request) {
 		"meta":      a.loadRuleMeta(),
 		"geosite":   a.geoSiteStatus(),
 		"geoip":     a.geoIPStatus(),
+		"antiAd":    a.antiAdStatus(),
 		"preset":    presetID,
 		"presets":   presets,
 		"customURL": custom,
@@ -1529,15 +1533,28 @@ func (a *App) handleRuleSetUpdate(w http.ResponseWriter, r *http.Request) {
 			a.addLog("warning", "GEOIP 数据库更新失败："+err.Error())
 		}
 	}
+	a.mu.RLock()
+	antiEnabled := a.settings.AdBlock
+	a.mu.RUnlock()
+	antiErr := ""
+	if antiEnabled {
+		if err := a.EnsureAntiAd(true); err != nil {
+			antiErr = err.Error()
+			a.addLog("warning", "增强广告规则更新失败："+err.Error())
+		}
+	}
 	if a.engine.Running() {
 		_ = a.appReload()
 	}
-	resp := map[string]any{"ok": true, "meta": meta, "geosite": a.geoSiteStatus(), "geoip": a.geoIPStatus()}
+	resp := map[string]any{"ok": true, "meta": meta, "geosite": a.geoSiteStatus(), "geoip": a.geoIPStatus(), "antiAd": a.antiAdStatus()}
 	if geoErr != "" {
 		resp["geositeError"] = geoErr
 	}
 	if geoIPErr != "" {
 		resp["geoipError"] = geoIPErr
+	}
+	if antiErr != "" {
+		resp["antiAdError"] = antiErr
 	}
 	writeJSON(w, 200, resp)
 }

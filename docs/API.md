@@ -59,7 +59,7 @@
     "panelPasswordSet": false,   // 只读；是否已设置密码（PUT 仍用 panelPassword 字段）
     "rulePreset": "cn-direct",   // cn-direct | proxy-all
     "geoipEnable": false,        // 可选：GEOIP,CN 直连（额外下载 country.mmdb 约 7.6MB）
-    "adBlock": false,            // 可选：GEOSITE,category-ads-all 去广告（仅规则模式生效）
+    "adBlock": false,            // 可选：anti-AD 优先 + category-ads-all 兜底（仅规则模式生效）
     "sniffer": true
   }
 }
@@ -258,9 +258,9 @@ SSE 断线由前端自动重连（EventSource 自带）。
 
 ### `GET /api/rules/set` 与 `POST /api/rules/update`
 
-国内规则集（`GEOSITE,cn,DIRECT` 域名规则 + `RULE-SET,cn-ip,DIRECT` IP 规则）的订阅与更新。
+国内规则集（`GEOSITE,cn,DIRECT` 域名规则 + `RULE-SET,cn-ip,DIRECT` IP 规则）的订阅与更新；开启增强广告时同一接口也会更新 anti-AD mrs。
 
-`GET /api/rules/set` → `{"meta":{"count":8123,"bytes":180422,"updatedAt":…,"source":…},"geosite":{"present":true,"ready":true,"size":4354422,"updatedAt":…,"count":110177,"source":"https://…/geosite.dat"},"geoip":{"present":false,"ready":false,"size":0,"updatedAt":0,"source":""},"auto":true,"hours":24,"preset":[…]}`
+`GET /api/rules/set` → `{"meta":{"count":8123,"bytes":180422,"updatedAt":…,"source":…},"geosite":{"present":true,"ready":true,"size":4354422,"updatedAt":…,"count":110177,"source":"https://…/geosite.dat"},"geoip":{"present":false,"ready":false,"size":0,"updatedAt":0,"source":""},"antiAd":{"present":false,"ready":false,"size":0,"updatedAt":0,"source":""},"auto":true,"hours":24,"preset":[…]}`
 
 `GET /api/rules/set` 还会返回可选预设：
 
@@ -271,7 +271,7 @@ SSE 断线由前端自动重连（EventSource 自带）。
   {"id":"loyalsoldier","name":"Loyalsoldier/geoip","lines":"≈10000"}]}
 ```
 
-`POST /api/rules/update` 支持 `{"preset":"17mon"}` 或 `{"url":"…"}`（显式 url 优先）→ 下载 → 校验 CIDR → 原子替换 → 同时更新 `geosite.dat`（开启 `geoipEnable` 时也更新 `geoip.metadb`）→ 热重载内核。响应额外带 `geosite` / `geoip` 状态；域名或 GEOIP 下载失败时分别返回 `geositeError` / `geoipError`，但 IP 规则仍会成功应用。
+`POST /api/rules/update` 支持 `{"preset":"17mon"}` 或 `{"url":"…"}`（显式 url 优先）→ 下载 → 校验 CIDR → 原子替换 → 同时更新 `geosite.dat`（开启 `geoipEnable` 时也更新 `geoip.metadb`、开启 `adBlock` 时更新 anti-AD mrs）→ 热重载内核。响应额外带 `geosite` / `geoip` / `antiAd` 状态；下载失败时分别返回 `geositeError` / `geoipError` / `antiAdError`，但 IP 规则仍会成功应用。
 
 ### `GET /api/netinfo`
 

@@ -750,11 +750,17 @@
     var geoipState = geoip && geoip.ready
       ? ('已下载' + (geoip.size ? ' · ' + MM.fmt.bytes(geoip.size) : ''))
       : (geoip && geoip.present ? '未就绪' : '未下载');
+    var anti = (rs && rs.antiAd) || null;
+    var antiState = anti && anti.ready
+      ? ('已下载' + (anti.size ? ' · ' + MM.fmt.bytes(anti.size) : ''))
+      : (anti && anti.present ? '未就绪' : '未下载');
     return ipRows +
       readonlyRow('域名规则', geoState, geo && geo.ready ? 'ok' : 'warn') +
       readonlyRow('域名更新时间', geo && geo.updatedAt ? MM.fmt.time(geo.updatedAt) : '—') +
       readonlyRow('GEOIP 数据库', geoipState, geoip && geoip.ready ? 'ok' : '') +
-      readonlyRow('GEOIP 更新时间', geoip && geoip.updatedAt ? MM.fmt.time(geoip.updatedAt) : '—');
+      readonlyRow('GEOIP 更新时间', geoip && geoip.updatedAt ? MM.fmt.time(geoip.updatedAt) : '—') +
+      readonlyRow('anti-AD 列表', antiState, anti && anti.ready ? 'ok' : '') +
+      readonlyRow('anti-AD 更新时间', anti && anti.updatedAt ? MM.fmt.time(anti.updatedAt) : '—');
   }
   function renderRuleset(container) {
     container.innerHTML =
@@ -773,8 +779,8 @@
         noteBlock('开启后会在后台下载数据库，完成后自动热重载；存储紧张时建议保持关闭，cn-ip 已能兜底。')) +
       groupCard('去广告',
         switchRow('adBlock', '拦截广告与统计域名',
-          '使用 GEOSITE,category-ads-all 拦截常见广告/统计域名；仅在规则模式生效') +
-        noteBlock('开启后拦截规则排在所有规则最前，避免国内广告域被直连规则放行；无法拦截第一方广告、视频贴片和 YouTube 广告。')) +
+          '优先使用 anti-AD 增强列表（约 10 万条，0.85MB），并用内置 category-ads-all 兜底；可能误杀，默认关闭') +
+        noteBlock('开启后 anti-AD 列表与内置列表合并排在规则最前；anti-AD 未下载/更新失败时内置列表仍生效。无法拦截第一方广告、视频贴片和 YouTube 广告。')) +
       groupCard('说明',
         noteBlock('「国内直连」先按域名匹配 GEOSITE,cn，再用 cn-ip CIDR 兜底；开启 GEOIP 时中间再加 GEOIP,CN。修改来源并保存后会立即重新下载。'));
     bindPage(container, {
@@ -953,7 +959,20 @@
       storeUn = MM.store.sub(function () {
         if (!active) return;
         updateSummaries();
-        if (refs && isForm(currentSub)) setPaneHead(currentSub);
+        var sub = currentSub;
+        if (!refs || !isForm(sub)) return;
+        // 设置是异步加载的：页面若先渲染，草稿会停在空值。设置到齐后（且用户还没改）
+        // 必须刷新草稿并重渲染，否则控件显示旧值、保存时可能把旧值写回去。
+        if (!dirty && !pageBusy && draft) {
+          var s = state().settings || {};
+          var changed = (PAGE_FIELDS[sub] || []).some(function (k) { return draft[k] !== s[k]; });
+          if (changed) {
+            ensureDraft(sub);
+            renderSub(currentCtx);
+            return;
+          }
+        }
+        setPaneHead(sub);
       });
     }
     var sub = (ctx && ctx.sub) || '';

@@ -35,7 +35,7 @@ type Settings struct {
 	RuleIntervalH    int    `json:"ruleIntervalH"`    // 更新间隔（小时）
 	LanIf            string `json:"lanIf"`            // 局域网接口，默认 br0
 	GeoIPEnable      bool   `json:"geoipEnable"`      // 可选：用 country.mmdb 做 GEOIP,CN 直连（额外约 7.6MB）
-	AdBlock          bool   `json:"adBlock"`          // 可选：GEOSITE,category-ads-all 去广告（仅规则模式）
+	AdBlock          bool   `json:"adBlock"`          // 可选：anti-AD + category-ads-all 去广告（仅规则模式）
 
 	// 定时重启内核
 	AutoRestart       bool   `json:"autoRestart"`       // 是否启用定时重启
