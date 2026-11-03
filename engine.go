@@ -20,6 +20,8 @@ import (
 const (
 	natChain       = "MLCLASH"
 	outChain       = "MLCLASH_OUT"
+	natChain6      = "MLCLASH6"
+	outChain6      = "MLCLASH6_OUT"
 	legacyNatChain = "MIHOMO"
 	legacyOutChain = "MIHOMO_OUT"
 )
@@ -138,8 +140,25 @@ func (e *Engine) rulesPresent() bool {
 	if err := e.ipt("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", natChain); err != nil {
 		return false
 	}
-	return e.ipt("-t", "nat", "-C", natChain, "-p", "tcp", "-j", "REDIRECT",
-		"--to-ports", itoa(s.RedirPort)) == nil
+	if err := e.ipt("-t", "nat", "-C", natChain, "-p", "tcp", "-j", "REDIRECT",
+		"--to-ports", itoa(s.RedirPort)); err != nil {
+		return false
+	}
+	if ip6tablesAvailable() {
+		if p := e.lanIPv6Prefix(lanIf); p != "" {
+			if err := e.ip6t("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", natChain6); err != nil {
+				return false
+			}
+			if err := e.ip6t("-t", "nat", "-C", natChain6, "-p", "tcp", "-j", "REDIRECT",
+				"--to-ports", itoa(s.RedirPort)); err != nil {
+				return false
+			}
+			if err := e.ip6t("-t", "nat", "-C", natChain6, "-d", p, "-j", "RETURN"); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (e *Engine) LastApply() int64 {
@@ -861,6 +880,73 @@ func (e *Engine) ipt(args ...string) error {
 	return nil
 }
 
+func ip6tablesBin() string {
+	if p, err := exec.LookPath("ip6tables"); err == nil {
+		return p
+	}
+	for _, p := range []string{"/usr/sbin/ip6tables", "/sbin/ip6tables", "/usr/bin/ip6tables"} {
+		if fileExists(p) {
+			return p
+		}
+	}
+	return "ip6tables"
+}
+
+func ip6tablesAvailable() bool {
+	_, err := exec.LookPath(ip6tablesBin())
+	return err == nil
+}
+
+func (e *Engine) ip6t(args ...string) error {
+	out, err := run(8*time.Second, ip6tablesBin(), args...)
+	if err != nil {
+		return fmt.Errorf("ip6tables %s: %s", strings.Join(args, " "), tail(out, 200))
+	}
+	return nil
+}
+
+func (e *Engine) preroutingIfaces6(chain string) []string {
+	out, err := run(8*time.Second, ip6tablesBin(), "-t", "nat", "-S", "PREROUTING")
+	if err != nil {
+		return nil
+	}
+	return parsePreroutingIfaces(out, chain)
+}
+
+// lanIPv6Prefix 返回局域网接口的全局 /64 前缀，用于避免把 LAN-LAN IPv6 流量
+// 也重定向进 mihomo。没有全局 IPv6 时返回空。
+func (e *Engine) lanIPv6Prefix(lanIf string) string {
+	ifc, err := net.InterfaceByName(lanIf)
+	if err != nil {
+		return ""
+	}
+	addrs, err := ifc.Addrs()
+	if err != nil {
+		return ""
+	}
+	fallback := ""
+	for _, a := range addrs {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip := ipnet.IP.To16()
+		if ip == nil || ip.To4() != nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
+			ip.IsMulticast() || ip.IsUnspecified() {
+			continue
+		}
+		prefix := ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+		if ip.IsPrivate() {
+			if fallback == "" {
+				fallback = prefix
+			}
+			continue
+		}
+		return prefix
+	}
+	return fallback
+}
+
 // parsePreroutingIfaces 从 `iptables -t nat -S PREROUTING` 输出里
 // 找出所有跳到指定链的接口。切换 lanIf 后旧接口的跳转不会自己消失，
 // 必须按实际现状清理，否则新设置根本没生效。
@@ -1069,11 +1155,120 @@ func (e *Engine) ApplyIptables() error {
 		_ = e.ipt("-t", "nat", "-X", outChain)
 	}
 
+	if err := e.applyIPv6(lanIf, s); err != nil {
+		e.app.addLog("warning", "IPv6 转发规则应用失败："+err.Error())
+	}
+
 	e.mu.Lock()
 	e.applied = true
 	e.lastApply = time.Now().Unix()
 	e.mu.Unlock()
 	return nil
+}
+
+// applyIPv6 建立 IPv6 nat 转发链。mihomo 的 redir 监听 [::]:port，
+// 但之前只给 IPv4 加了 REDIRECT；手机走 IPv6 时广告/代理会完全绕过。
+func (e *Engine) applyIPv6(lanIf string, s Settings) error {
+	if !ip6tablesAvailable() {
+		return nil
+	}
+	_ = e.ip6t("-t", "nat", "-N", natChain6)
+	_ = e.ip6t("-t", "nat", "-F", natChain6)
+
+	bypass := []string{"::1/128", "fc00::/7", "fe80::/10", "ff00::/8"}
+	if p := e.lanIPv6Prefix(lanIf); p != "" {
+		bypass = append(bypass, p)
+	}
+	for _, cidr := range bypass {
+		if err := e.ip6t("-t", "nat", "-A", natChain6, "-d", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
+	}
+	if err := e.ip6t("-t", "nat", "-A", natChain6, "-p", "tcp", "-j", "REDIRECT",
+		"--to-ports", itoa(s.RedirPort)); err != nil {
+		return err
+	}
+	for _, iface := range e.preroutingIfaces6(natChain6) {
+		if iface != lanIf {
+			_ = e.ip6t("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", natChain6)
+		}
+	}
+	if err := e.ip6t("-t", "nat", "-C", "PREROUTING", "-i", lanIf, "-j", natChain6); err != nil {
+		if err := e.ip6t("-t", "nat", "-I", "PREROUTING", "1", "-i", lanIf, "-j", natChain6); err != nil {
+			return err
+		}
+	}
+
+	// IPv6 QUIC 同样要阻断，否则 UDP/443 绕过 redir。
+	if s.BlockQuic {
+		if err := e.ip6t("-C", "FORWARD", "-p", "udp", "--dport", "443", "-j", "REJECT"); err != nil {
+			_ = e.ip6t("-I", "FORWARD", "1", "-p", "udp", "--dport", "443", "-j", "REJECT")
+		}
+	} else {
+		for i := 0; i < 5; i++ {
+			if err := e.ip6t("-D", "FORWARD", "-p", "udp", "--dport", "443", "-j", "REJECT"); err != nil {
+				break
+			}
+		}
+	}
+
+	// IPv6 TCP MSS 钳制。
+	if err := e.ip6t("-t", "mangle", "-C", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
+		"-j", "TCPMSS", "--clamp-mss-to-pmtu"); err != nil {
+		_ = e.ip6t("-t", "mangle", "-A", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
+			"-j", "TCPMSS", "--clamp-mss-to-pmtu")
+	}
+
+	if s.RouterSelf {
+		_ = e.ip6t("-t", "nat", "-N", outChain6)
+		_ = e.ip6t("-t", "nat", "-F", outChain6)
+		for _, cidr := range bypass {
+			_ = e.ip6t("-t", "nat", "-A", outChain6, "-d", cidr, "-j", "RETURN")
+		}
+		_ = e.ip6t("-t", "nat", "-A", outChain6, "-p", "tcp", "-j", "REDIRECT",
+			"--to-ports", itoa(s.RedirPort))
+		if err := e.ip6t("-t", "nat", "-C", "OUTPUT", "-j", outChain6); err != nil {
+			_ = e.ip6t("-t", "nat", "-I", "OUTPUT", "1", "-j", outChain6)
+		}
+	} else {
+		for i := 0; i < 5; i++ {
+			if err := e.ip6t("-t", "nat", "-D", "OUTPUT", "-j", outChain6); err != nil {
+				break
+			}
+		}
+		_ = e.ip6t("-t", "nat", "-F", outChain6)
+		_ = e.ip6t("-t", "nat", "-X", outChain6)
+	}
+	return nil
+}
+
+func (e *Engine) clearIPv6() {
+	if !ip6tablesAvailable() {
+		return
+	}
+	for _, iface := range e.preroutingIfaces6(natChain6) {
+		_ = e.ip6t("-t", "nat", "-D", "PREROUTING", "-i", iface, "-j", natChain6)
+	}
+	for i := 0; i < 5; i++ {
+		if err := e.ip6t("-t", "nat", "-D", "OUTPUT", "-j", outChain6); err != nil {
+			break
+		}
+	}
+	_ = e.ip6t("-t", "nat", "-F", natChain6)
+	_ = e.ip6t("-t", "nat", "-X", natChain6)
+	_ = e.ip6t("-t", "nat", "-F", outChain6)
+	_ = e.ip6t("-t", "nat", "-X", outChain6)
+	for i := 0; i < 5; i++ {
+		if err := e.ip6t("-D", "FORWARD", "-p", "udp", "--dport", "443", "-j", "REJECT"); err != nil {
+			break
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if err := e.ip6t("-t", "mangle", "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",
+			"-j", "TCPMSS", "--clamp-mss-to-pmtu"); err != nil {
+			break
+		}
+	}
 }
 
 // ClearIptables 移除全部本插件规则。
@@ -1101,6 +1296,7 @@ func (e *Engine) ClearIptables() error {
 	_ = e.ipt("-t", "nat", "-F", outChain)
 	_ = e.ipt("-t", "nat", "-X", outChain)
 	e.cleanupLegacyIptables()
+	e.clearIPv6()
 	_ = e.ipt("-D", "FORWARD", "-p", "udp", "--dport", "443", "-j", "REJECT")
 	for i := 0; i < 3; i++ {
 		if err := e.ipt("-t", "mangle", "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN",

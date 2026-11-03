@@ -1,5 +1,16 @@
 # 更新记录
 
+## 3.1.1（2026-11-03）
+
+- **修复 IPv6 流量完全绕过透明代理**：此前只给 IPv4 加了 REDIRECT，手机走 IPv6 时
+  广告拦截和代理都不生效
+- 新增 `ip6tables` nat 链 `MLCLASH6` / `MLCLASH6_OUT`：绕过 `::1`、`fc00::/7`、
+  `fe80::/10`、`ff00::/8` 和本机 LAN /64，其余 TCP REDIRECT 到 redir 端口
+- IPv6 QUIC（UDP/443）REJECT，迫使回落 TCP；IPv6 TCP MSS 钳制
+- 引擎启停、`ctl.sh` 与 koolshare/Merlin 卸载脚本同步清理 IPv6 规则
+- 真机验证：IPv6 下 `gdt.qq.com` / `doubleclick.net` / `pangle.cn` REJECT，
+  baidu / example / Google 正常；IPv4 行为不变
+
 ## 3.1.0（2026-11-03）
 
 - **去广告合并为单一开关**：优先使用 anti-AD `mihomo.mrs`（约 10 万条域名，约 0.85MB），

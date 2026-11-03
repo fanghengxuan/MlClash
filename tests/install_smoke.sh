@@ -105,10 +105,10 @@ EOF
 cat > "$STUB/mlclash-panel" <<EOF
 #!/bin/sh
 case "\$1" in
-	-v) echo "MlClash panel 3.1.0-stub"; exit 0 ;;
+	-v) echo "MlClash panel 3.1.1-stub"; exit 0 ;;
 esac
 echo \$\$ > "$ROOT/panel.pid"
-echo "MlClash panel 3.1.0-stub started"
+echo "MlClash panel 3.1.1-stub started"
 exec sleep 300
 EOF
 

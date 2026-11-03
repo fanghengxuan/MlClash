@@ -45,7 +45,7 @@ echo "\$pid"
 EOF
 cat > "$STUB/mlclash-panel" <<EOS
 #!/bin/sh
-case "\$1" in -v) echo "MlClash panel 3.1.0-stub"; exit 0 ;; esac
+case "\$1" in -v) echo "MlClash panel 3.1.1-stub"; exit 0 ;; esac
 echo \$\$ > "$ROOT/panel.pid"
 exec sleep 300
 EOS

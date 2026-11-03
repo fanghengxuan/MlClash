@@ -141,5 +141,5 @@ if [ "${FREE_BEFORE:-}" != "" ] && [ "$FREE" != "未知" ]; then
 	[ "$GAIN" -gt 0 ] && say "按 df 计算，jffs 增加了 ${GAIN}KB"
 fi
 say "清理完成：释放约 $((FREED / 1024)) MB（${FREED}KB），jffs 当前剩余 ${FREE:-未知}KB"
-say "现在可以到「软件中心 → 离线安装」装 MlClash_3.1.0_armv7_koolshare.tar.gz"
+say "现在可以到「软件中心 → 离线安装」装 MlClash_3.1.1_armv7_koolshare.tar.gz"
 say "诊断日志：/tmp/mlclash-cleanup.log（如需反馈请贴这段）"

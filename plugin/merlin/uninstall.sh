@@ -72,6 +72,32 @@ if command -v iptables >/dev/null 2>&1; then
 	done
 fi
 
+if command -v ip6tables >/dev/null 2>&1; then
+	for chain in MLCLASH6 MLCLASH6_OUT; do
+		i=0
+		while [ "$i" -lt 5 ]; do
+			if [ "$chain" = "MLCLASH6" ]; then
+				ip6tables -t nat -D PREROUTING -i "$lanif" -j "$chain" 2>/dev/null || break
+			else
+				ip6tables -t nat -D OUTPUT -j "$chain" 2>/dev/null || break
+			fi
+			i=$((i + 1))
+		done
+		ip6tables -t nat -F "$chain" 2>/dev/null
+		ip6tables -t nat -X "$chain" 2>/dev/null
+	done
+	i=0
+	while [ "$i" -lt 5 ]; do
+		ip6tables -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null || break
+		i=$((i + 1))
+	done
+	i=0
+	while [ "$i" -lt 3 ]; do
+		ip6tables -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || break
+		i=$((i + 1))
+	done
+fi
+
 if [ "$KEEP" = "1" ]; then
 	for d in "$BASE" "$OLD_BASE"; do
 		[ -d "$d" ] || continue

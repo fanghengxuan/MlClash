@@ -17,7 +17,7 @@
 > koolshare 版 v2.0.0。同代 axhnd 机型（RT-AX58U / RT-AX3000 / RT-AX56U 等）通常同样适用。
 
 **能力**：订阅管理（链接 / 粘贴导入 / 正则过滤）· 节点分组与测速 · 规则 / 全局 / 直连三种模式 ·
-透明代理（iptables REDIRECT）· 实时流量与连接 · 日志流 · 服务连通性与 IP 质量 ·
+透明代理（iptables REDIRECT，IPv4/IPv6）· 实时流量与连接 · 日志流 · 服务连通性与 IP 质量 ·
 备份恢复 · DNS（fake-ip）· 国内 IP 规则自动更新 · 可选去广告（anti-AD 优先 + category-ads-all 兜底）· 定时重启 · 内核在线更新与回滚 · 存储清理 · 开机自启。
 
 ## 截图

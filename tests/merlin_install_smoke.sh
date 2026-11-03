@@ -71,7 +71,7 @@ EOF
 cat >"$STUB/mlclash-panel" <<'EOF'
 #!/bin/sh
 case "$1" in
-	-v) echo "MlClash panel 3.1.0-stub"; exit 0 ;;
+	-v) echo "MlClash panel 3.1.1-stub"; exit 0 ;;
 esac
 trap 'exit 0' TERM INT
 # 保持 shell 进程，让 cmdline 里保留 mlclash-panel 路径（panel_running 会校验）

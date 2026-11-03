@@ -140,6 +140,28 @@ clear_iptables() {
 		"$ipt" -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || break
 		i=$((i + 1))
 	done
+	ipt6=$(command -v ip6tables 2>/dev/null)
+	if [ -n "$ipt6" ]; then
+		for chain in MLCLASH6 MLCLASH6_OUT; do
+			i=0
+			while [ "$i" -lt 5 ]; do
+				if [ "$chain" = "MLCLASH6" ]; then
+					"$ipt6" -t nat -D PREROUTING -i "$lanif" -j "$chain" 2>/dev/null || break
+				else
+					"$ipt6" -t nat -D OUTPUT -j "$chain" 2>/dev/null || break
+				fi
+				i=$((i + 1))
+			done
+			"$ipt6" -t nat -F "$chain" 2>/dev/null
+			"$ipt6" -t nat -X "$chain" 2>/dev/null
+		done
+		for i in 1 2 3 4 5; do
+			"$ipt6" -D FORWARD -p udp --dport 443 -j REJECT 2>/dev/null || break
+		done
+		for i in 1 2 3; do
+			"$ipt6" -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || break
+		done
+	fi
 }
 
 stop_all() {
