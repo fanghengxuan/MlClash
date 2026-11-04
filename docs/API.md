@@ -174,7 +174,7 @@ SSE 断线由前端自动重连（EventSource 自带）。
 ## 6. 前端约定
 
 - 纯静态：`index.html` + `css/tokens.css` + `app.css` + `js/**`（经典脚本 + `window.MM`），**不引入任何 CDN / npm 依赖**，可离线使用（路由器场景）。
-- 风格参考 FlClash：四级明度表面、圆角卡片、桌面左侧栏 / 移动底部 dock、延迟只染文字（<600ms 成功 / ≥600ms 警告 / 超时错误 / 未测中性）。设计规范见 `docs/ui-redesign/spec.md`。
+- 风格参考 FlClash：四级明度表面、圆角卡片、桌面左侧栏 / 移动底部 dock、延迟只染文字（<600ms 成功 / ≥600ms 警告 / 超时错误 / 未测中性）。
 - 所有文案中文；错误 toast 显示服务端 `error` 原文。
 - 轮询：`/api/status` 每 10s（低端 15s，页面可见时），`/api/nodes` 每 10s，连接页 2s，日志与流量走 SSE。
 - 写操作按钮需有 loading 与二次确认（删除订阅、停止引擎）。
@@ -356,7 +356,7 @@ SSE 断线由前端自动重连（EventSource 自带）。
 `subs`（含订阅地址与令牌）、`providers`（订阅 id → 节点文件内容）、`rulesMeta`。
 
 ### POST /api/restore
-请求体为上面的备份 JSON（≤16MB）。校验 `kind == "mlclash-backup"`（兼容旧版 `mihomo-merlin-backup`）且 `format <= 1`；
+请求体为上面的备份 JSON（≤16MB）。校验 `kind == "mlclash-backup"` 且 `format <= 1`；
 设置以默认值起步再覆盖备份里出现的字段（老备份缺字段不会把 allowLan/autoStart 清成 false）；
 订阅与节点文件一并写回，内核运行中会热重载。
 

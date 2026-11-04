@@ -66,9 +66,9 @@ tar -xzf MlClash_<version>_armv7_koolshare.tar.gz
 sh /tmp/mlclash/install.sh
 ```
 
-#### Upgrade and migration
+#### Upgrade
 
-The installer upgrades in place. Versions before 3.0 were named `mihomo-merlin`. The installer migrates `/jffs/mihomo-merlin` or `/koolshare/mihomo` data, subscriptions, rules and startup hooks to the new paths. Backups with the old `mihomo-merlin-backup` kind are still accepted.
+Install a newer package over the existing installation. The installer stops the service, updates the panel and kernel, keeps data, subscriptions and rules, then restarts the panel.
 
 Uninstall:
 
@@ -232,9 +232,9 @@ tar -xzf MlClash_<版本>_armv7_koolshare.tar.gz
 sh /tmp/mlclash/install.sh
 ```
 
-#### 升级与迁移
+#### 升级
 
-安装器支持原地升级。3.0 以前的项目名为 `mihomo-merlin`；安装器会把 `/jffs/mihomo-merlin`（或 `/koolshare/mihomo`）下的数据、订阅、规则和启动钩子迁移到新路径，旧 `mihomo-merlin-backup` 备份仍可恢复。
+直接在现有安装上覆盖安装新版本。安装器会停止服务、更新面板与内核、保留数据/订阅/规则，然后重新启动面板。
 
 卸载：
 
