@@ -1,6 +1,6 @@
 # MlClash 面板 API 契约 v1
 
-面板由一个静态前端（`web/`，被 Go `embed` 打包）和一个 Go HTTP 服务组成。
+面板由一个静态前端（`cmd/mlclash-panel/web/`，被 Go `embed` 打包）和一个 Go HTTP 服务组成。
 前端只与下面这些 HTTP 接口通信，**不得**直接访问 mihomo 的 9090 API（浏览器在 LAN 侧，`external-controller` 只监听 127.0.0.1）。
 
 - 基础路径：`/api`

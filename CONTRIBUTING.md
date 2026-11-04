@@ -20,8 +20,8 @@ go test ./...                 # 单元测试
 sh tests/e2e.sh               # 有内核时跑真实 e2e
 ```
 
-3. 改前端时注意：`web/` 通过 `go:embed` 打进面板，**改完必须重新编译**，否则路由器上看到的还是旧资源
-4. 版本号需同步四处：`main.go` 的 `panelVersion`、`plugin/version`、`plugin/webs/Module_mlclash.asp` 的 `PKG_VERSION`、`web/index.html` 里的资源版本号（用于打破浏览器缓存）
+3. 改前端时注意：`cmd/mlclash-panel/web/` 通过 `go:embed` 打进面板，**改完必须重新编译**，否则路由器上看到的还是旧资源
+4. 版本号需同步四处：`cmd/mlclash-panel/main.go` 的 `panelVersion`、`plugin/version`、`plugin/webs/Module_mlclash.asp` 的 `PKG_VERSION`、`cmd/mlclash-panel/web/index.html` 里的资源版本号（用于打破浏览器缓存）
 
 ## 代码风格
 

@@ -33,7 +33,7 @@ mkdir -p "$STAGE/bin" "$STAGE/rules" "$STAGE/scripts"
 
 echo ">>> 交叉编译面板 (linux/arm GOARM=7)"
 CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
-	"$GO" build -trimpath -ldflags "-s -w" -o "$STAGE/bin/mlclash-panel" "$ROOT"
+	"$GO" build -trimpath -ldflags "-s -w" -o "$STAGE/bin/mlclash-panel" "$ROOT/cmd/mlclash-panel"
 
 if [ "${PANEL_UPX:-0}" = "1" ] && command -v upx >/dev/null 2>&1; then
 	if upx --best --lzma "$STAGE/bin/mlclash-panel" >/dev/null 2>&1; then

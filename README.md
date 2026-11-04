@@ -139,18 +139,19 @@ Additional smoke tests require a built `dist/stage` or packages: `tests/install_
 ### Project layout
 
 ```
-api.go        HTTP API and auth
-config.go     mihomo config generation
-engine.go     process, iptables/ip6tables, reload/watchdog
-subs.go       subscription fetch/parse
-ruleset.go    cn-ip source and scheduler
-geodata.go    geosite/geoip download and validation
-antiad.go     anti-AD mrs download and validation
-web/          embedded panel
-plugin/       Merlin and koolshare installers
-tools/        package builders
-tests/        smoke and UI checks
-docs/API.md   API reference
+cmd/mlclash-panel/
+  api.go        HTTP API and auth
+  config.go     mihomo config generation
+  engine.go     process, iptables/ip6tables, reload/watchdog
+  subs.go       subscription fetch/parse
+  ruleset.go    cn-ip source and scheduler
+  geodata.go    geosite/geoip download and validation
+  antiad.go     anti-AD mrs download and validation
+  web/          embedded panel
+plugin/         Merlin and koolshare installers
+tools/          package builders
+tests/          smoke and UI checks
+docs/API.md     API reference
 ```
 
 ### Documentation
@@ -305,18 +306,19 @@ sh tests/merlin_install_smoke.sh
 ### 项目结构
 
 ```
-api.go        HTTP API 与鉴权
-config.go     mihomo 配置生成
-engine.go     进程、iptables/ip6tables、重载与看门狗
-subs.go       订阅拉取与解析
-ruleset.go    国内 IP 规则源与调度
-geodata.go    geosite/geoip 下载与校验
-antiad.go     anti-AD mrs 下载与校验
-web/          内嵌面板
-plugin/       Merlin 与 koolshare 安装脚本
-tools/        打包工具
-tests/        冒烟与 UI 检查
-docs/API.md   API 文档
+cmd/mlclash-panel/
+  api.go        HTTP API 与鉴权
+  config.go     mihomo 配置生成
+  engine.go     进程、iptables/ip6tables、重载与看门狗
+  subs.go       订阅拉取与解析
+  ruleset.go    国内 IP 规则源与调度
+  geodata.go    geosite/geoip 下载与校验
+  antiad.go     anti-AD mrs 下载与校验
+  web/          内嵌面板
+plugin/         Merlin 与 koolshare 安装脚本
+tools/          打包工具
+tests/          冒烟与 UI 检查
+docs/API.md     API 文档
 ```
 
 ### 文档

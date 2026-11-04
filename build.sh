@@ -84,7 +84,7 @@ fetch_rules() {
 build_panel() {
 	echo ">>> 交叉编译面板 (linux/arm GOARM=7)"
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
-		"$GO" build -trimpath -ldflags "-s -w" -o "$CACHE/mlclash-panel-linux-armv7" .
+		"$GO" build -trimpath -ldflags "-s -w" -o "$CACHE/mlclash-panel-linux-armv7" "$ROOT/cmd/mlclash-panel"
 		if [ "${PANEL_UPX:-0}" = "1" ] && command -v upx >/dev/null 2>&1; then
 			cp -f "$CACHE/mlclash-panel-linux-armv7" "$CACHE/mlclash-panel-linux-armv7.upx"
 			if upx --best --lzma "$CACHE/mlclash-panel-linux-armv7.upx" >/dev/null 2>&1; then
@@ -102,7 +102,7 @@ build_panel() {
 
 build_dev() {
 	echo ">>> 编译本机调试版本"
-	"$GO" build -o "$CACHE/mlclash-panel-local" .
+	"$GO" build -o "$CACHE/mlclash-panel-local" "$ROOT/cmd/mlclash-panel"
 }
 
 stage_package() {
@@ -194,7 +194,7 @@ fi
 
 build_panel
 
-# 前端一致性检查：HTML 结构 / id 引用 / web/js 语法 / 脚本顺序与版本戳 / 禁用模式
+# 前端一致性检查：HTML 结构 / id 引用 / cmd/mlclash-panel/web/js 语法 / 脚本顺序与版本戳 / 禁用模式
 if command -v python3 >/dev/null 2>&1; then
 	echo ">>> 前端一致性检查"
 	python3 "$ROOT/tests/ui_check.py" || { echo "!!! 前端检查未通过，停止打包"; exit 1; }

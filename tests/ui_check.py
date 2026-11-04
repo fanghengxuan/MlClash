@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""前端一致性检查（v2 面板，扫描 web/**）。
+"""前端一致性检查（v2 面板，扫描 cmd/mlclash-panel/web/**）。
 
 检查项：
 1. index.html 标签平衡、SVG sprite 引用完整
 2. JS 引用的 #id 存在于 HTML 或 JS 动态生成的字符串里
-3. 所有 web/js/**/*.js 通过 node --check
+3. 所有 cmd/mlclash-panel/web/js/**/*.js 通过 node --check
 4. 脚本加载顺序与版本戳一致（?v= 等于 MM.VERSION）
 5. 禁止 window.confirm / alert 式阻塞、color-mix、backdrop-filter、外部 URL
 6. 关键类名在 CSS 中有定义
@@ -17,7 +17,7 @@ import subprocess
 import sys
 from html.parser import HTMLParser
 
-ROOT = "web"
+ROOT = "cmd/mlclash-panel/web"
 VOID = {"br", "img", "input", "meta", "link", "hr", "use", "path", "circle", "rect", "ellipse",
         "line", "polyline", "polygon", "source", "area", "base", "col", "embed", "param", "track", "wbr"}
 SCRIPT_ORDER = [
@@ -207,7 +207,7 @@ def main():
     check_boot()
 
     if os.path.exists(os.path.join(ROOT, "app.js")):
-        warnings.append("web/app.js 仍存在（旧面板，已不再被 index.html 引用；P5 删除）")
+        warnings.append("cmd/mlclash-panel/web/app.js 仍存在（旧面板，已不再被 index.html 引用；P5 删除）")
 
     for w in warnings:
         print("⚠️ ", w)
