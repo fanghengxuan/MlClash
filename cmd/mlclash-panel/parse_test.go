@@ -255,8 +255,8 @@ func TestFullFlowWithRealCore(t *testing.T) {
 		t.Fatalf("provider 数量 %d，期望 2", len(providers))
 	}
 	groups := cfg["proxy-groups"].([]any)
-	if len(groups) != 4 { // 主 + 自动 + 2 个子订阅组
-		t.Fatalf("分组数量 %d，期望 4", len(groups))
+	if len(groups) != 5 { // 主 + 自动 + 2 个子订阅组 + 内部质量检测组
+		t.Fatalf("分组数量 %d，期望 5", len(groups))
 	}
 
 	// 写盘并让真实内核校验 + 启动

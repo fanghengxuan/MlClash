@@ -758,6 +758,7 @@ type nodeDTO struct {
 	Sub     string `json:"sub"`
 	Delay   int    `json:"delay"`
 	DelayAt int64  `json:"delayAt"`
+	Quality string `json:"quality,omitempty"` // good | normal | risky | unknown
 }
 
 type groupDTO struct {
@@ -824,12 +825,14 @@ func (a *App) handleNodes(w http.ResponseWriter, r *http.Request) {
 	a.mu.RUnlock()
 
 	var groups []groupDTO
+	quality := a.qualitySnapshot()
 	for name, p := range proxies {
 		if !isGroupType(p.Type) {
 			continue
 		}
-		// GLOBAL / 同名内置组不展示，避免和我们的「节点选择」重复
-		if name == "GLOBAL" {
+		// GLOBAL / 同名内置组不展示，避免和我们的「节点选择」重复；
+		// 隐藏的内部组（质量检测）也不展示。
+		if name == "GLOBAL" || p.Hidden {
 			continue
 		}
 		g := groupDTO{Name: name, Type: p.Type, Now: p.Now}
@@ -858,6 +861,7 @@ func (a *App) handleNodes(w http.ResponseWriter, r *http.Request) {
 				IsGroup: isGroupMember,
 				Sub:     subNames[pi.ProviderName],
 				Delay:   delay,
+				Quality: quality[n].Level,
 			})
 		}
 		groups = append(groups, g)

@@ -216,8 +216,32 @@ func (a *App) BuildConfig() (map[string]any, error) {
 			"tolerance": autoTolerance,
 		},
 	}
+	// 订阅更新后的质量检测会把被公开库标记为代理/VPN/Tor 的节点排除出自动选择；
+	// 组内仍由 url-test 按延迟选。
+	if exclude := a.autoExcludeFilter(); exclude != "" {
+		groups[1].(map[string]any)["exclude-filter"] = exclude
+	}
 	groups = append(groups, subGroups...)
+	// 内部质量检测组：只被本地 listener 使用，不对用户展示。
+	groups = append(groups, map[string]any{
+		"name":   groupQuality,
+		"type":   "select",
+		"use":    toAnySlice(useIDs),
+		"hidden": true,
+	})
 	cfg["proxy-groups"] = groups
+
+	// 质量检测入口：面板从 127.0.0.1 的这个端口出站，只影响探测流量。
+	cfg["listeners"] = []any{
+		map[string]any{
+			"name":   qualityListenerName,
+			"type":   "mixed",
+			"listen": "127.0.0.1",
+			"port":   a.qualityPort(),
+			"udp":    false,
+			"proxy":  groupQuality,
+		},
+	}
 
 	// 规则
 	var rules []any

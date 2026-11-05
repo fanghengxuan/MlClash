@@ -279,6 +279,14 @@
     return arr;
   }
 
+  function qualityState(node) {
+    var q = node && node.quality;
+    if (q === 'good') return { cls: 'q-good', text: '良好', title: '出口 IP 未被标记为代理，风控站点兼容性最好' };
+    if (q === 'normal') return { cls: 'q-normal', text: '一般', title: '机房/云 IP，未被标记为代理，部分严格风控站点可能挑剔' };
+    if (q === 'risky') return { cls: 'q-risky', text: '有风险', title: '出口 IP 被公开库标记为代理/VPN/Tor，可能触发验证码或限制' };
+    return { cls: 'q-none', text: '未测', title: '尚未检测该节点的出口 IP 质量' };
+  }
+
   function delayState(node) {
     if (testingNodes[node.name]) return { cls: 'lat-testing', text: '测试…' };
     var d = Number(node.delay) || 0;
@@ -300,6 +308,7 @@
       '<span class="node-check"></span>' +
       '<span class="node-well"></span>' +
       '<span class="node-main"><span class="node-name"></span><span class="node-sub"></span></span>' +
+      '<span class="node-quality"></span>' +
       '<span class="lat node-delay"></span>' +
       '<button class="node-test" type="button" aria-label="测速">' + MM.icon('bolt') + '</button>';
     row.__r = {
@@ -307,6 +316,7 @@
       well: row.querySelector('.node-well'),
       name: row.querySelector('.node-name'),
       sub: row.querySelector('.node-sub'),
+      quality: row.querySelector('.node-quality'),
       delay: row.querySelector('.node-delay'),
       test: row.querySelector('.node-test')
     };
@@ -345,6 +355,10 @@
     var info = delayState(node);
     r.delay.className = 'lat node-delay ' + info.cls;
     setText(r.delay, info.text);
+    var q = qualityState(node);
+    r.quality.className = 'node-quality ' + q.cls;
+    setText(r.quality, node.isGroup ? '' : q.text);
+    r.quality.title = node.isGroup ? '' : q.title;
     var testing = !!testingNodes[node.name];
     r.test.disabled = testing || !!node.isGroup || preview;
     r.test.classList.toggle('testing', testing);

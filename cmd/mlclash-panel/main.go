@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const panelVersion = "3.1.2"
+const panelVersion = "3.2.0"
 
 // panelPort 管理面板监听端口（插件安装脚本与 ASP 都按此端口访问）
 const panelPort = 9380
@@ -78,6 +78,15 @@ type App struct {
 	ipqAt   time.Time
 	ipqData *IPQuality
 
+	// 节点出口质量（订阅更新后全量检测一次，持久化在 dataDir/quality.json）
+	qualityMu      sync.Mutex
+	quality        qualityStore
+	qualityTimer   *time.Timer
+	qualityBusy    bool
+	qualityPending bool
+	qualityPortMu  sync.Mutex
+	qualityPortNum int
+
 	// 定时重启的进度（持久化在 dataDir/restart.json）
 	restartMu       sync.Mutex
 	lastRestartAt   int64
@@ -109,8 +118,10 @@ func main() {
 	}
 
 	app.loadSettings()
+	app.loadQualityPort()
 	app.loadRestartState()
 	app.loadSubs()
+	app.loadQuality()
 	app.clash = NewClashClient(fmt.Sprintf("127.0.0.1:%d", app.settings.APIPort), app.settings.ClashSecret)
 	app.engine = NewEngine(app)
 	app.hub = NewHub(app)

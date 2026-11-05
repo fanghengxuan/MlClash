@@ -136,6 +136,8 @@ func (a *App) fetchSubAs(s *Sub, op string) error {
 		s.Traffic = t
 	}
 	a.prog("fetch", s.Name, "done", fmt.Sprintf("完成：%d 个节点", res.NodeCount), true, false)
+	// 节点可能已变化：合并多次更新后，等内核加载新配置再统一检测出口质量。
+	a.scheduleQualityScan()
 	return nil
 }
 
