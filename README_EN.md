@@ -30,13 +30,13 @@
 ## Screenshots
 
 <p align="center">
-  <a href="docs/screenshots/overview-light.png"><img src="docs/screenshots/overview-light.png" width="49%" alt="Overview"></a>
-  <a href="docs/screenshots/nodes-light.png"><img src="docs/screenshots/nodes-light.png" width="49%" alt="Nodes"></a>
+  <a href="docs/screenshots/overview-light.png?v=3"><img src="docs/screenshots/overview-light.png?v=3" width="49%" alt="Overview"></a>
+  <a href="docs/screenshots/nodes-light.png?v=3"><img src="docs/screenshots/nodes-light.png?v=3" width="49%" alt="Nodes"></a>
   <br><sub>Overview · Nodes</sub>
 </p>
 <p align="center">
-  <a href="docs/screenshots/subs-light.png"><img src="docs/screenshots/subs-light.png" width="49%" alt="Subscriptions"></a>
-  <a href="docs/screenshots/settings-light.png"><img src="docs/screenshots/settings-light.png" width="49%" alt="Settings"></a>
+  <a href="docs/screenshots/subs-light.png?v=3"><img src="docs/screenshots/subs-light.png?v=3" width="49%" alt="Subscriptions"></a>
+  <a href="docs/screenshots/settings-light.png?v=3"><img src="docs/screenshots/settings-light.png?v=3" width="49%" alt="Settings"></a>
   <br><sub>Subscriptions · Settings</sub>
 </p>
 
