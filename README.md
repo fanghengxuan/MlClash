@@ -30,13 +30,13 @@
 ## 界面预览
 
 <p align="center">
-  <a href="docs/screenshots/overview.png"><img src="docs/screenshots/overview.png" width="49%" alt="概览"></a>
-  <a href="docs/screenshots/nodes.png"><img src="docs/screenshots/nodes.png" width="49%" alt="节点"></a>
+  <a href="docs/screenshots/overview.png?v=2"><img src="docs/screenshots/overview.png?v=2" width="49%" alt="概览"></a>
+  <a href="docs/screenshots/nodes.png?v=2"><img src="docs/screenshots/nodes.png?v=2" width="49%" alt="节点"></a>
   <br><sub>概览 · 节点</sub>
 </p>
 <p align="center">
-  <a href="docs/screenshots/subs.png"><img src="docs/screenshots/subs.png" width="49%" alt="订阅"></a>
-  <a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" width="49%" alt="设置"></a>
+  <a href="docs/screenshots/subs.png?v=2"><img src="docs/screenshots/subs.png?v=2" width="49%" alt="订阅"></a>
+  <a href="docs/screenshots/settings.png?v=2"><img src="docs/screenshots/settings.png?v=2" width="49%" alt="设置"></a>
   <br><sub>订阅 · 设置</sub>
 </p>
 

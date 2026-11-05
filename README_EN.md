@@ -30,13 +30,13 @@
 ## Screenshots
 
 <p align="center">
-  <a href="docs/screenshots/overview.png"><img src="docs/screenshots/overview.png" width="49%" alt="Overview"></a>
-  <a href="docs/screenshots/nodes.png"><img src="docs/screenshots/nodes.png" width="49%" alt="Nodes"></a>
+  <a href="docs/screenshots/overview.png?v=2"><img src="docs/screenshots/overview.png?v=2" width="49%" alt="Overview"></a>
+  <a href="docs/screenshots/nodes.png?v=2"><img src="docs/screenshots/nodes.png?v=2" width="49%" alt="Nodes"></a>
   <br><sub>Overview · Nodes</sub>
 </p>
 <p align="center">
-  <a href="docs/screenshots/subs.png"><img src="docs/screenshots/subs.png" width="49%" alt="Subscriptions"></a>
-  <a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" width="49%" alt="Settings"></a>
+  <a href="docs/screenshots/subs.png?v=2"><img src="docs/screenshots/subs.png?v=2" width="49%" alt="Subscriptions"></a>
+  <a href="docs/screenshots/settings.png?v=2"><img src="docs/screenshots/settings.png?v=2" width="49%" alt="Settings"></a>
   <br><sub>Subscriptions · Settings</sub>
 </p>
 
