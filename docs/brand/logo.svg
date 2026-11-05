@@ -1,10 +1,56 @@
-<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MlClash — Merlin router Clash plugin</title>
+  <desc id="desc">Transparent icon combining a Merlin wizard hat, router hardware, and a Clash-style proxy traffic orbit.</desc>
   <defs>
-    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4F8CFF"/><stop offset="1" stop-color="#8B5CF6"/>
+    <linearGradient id="hat" x1="150" y1="72" x2="365" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#45E9FF"/>
+      <stop offset=".42" stop-color="#147BFF"/>
+      <stop offset="1" stop-color="#1239B8"/>
+    </linearGradient>
+    <linearGradient id="brim" x1="126" y1="226" x2="397" y2="282" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#75F4FF"/>
+      <stop offset=".5" stop-color="#167EFF"/>
+      <stop offset="1" stop-color="#19D8E8"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="60" y1="330" x2="457" y2="222" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#126BFF"/>
+      <stop offset=".52" stop-color="#20C9FF"/>
+      <stop offset="1" stop-color="#53F4DF"/>
+    </linearGradient>
+    <linearGradient id="body" x1="160" y1="355" x2="355" y2="425" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173D78"/>
+      <stop offset="1" stop-color="#071A38"/>
     </linearGradient>
   </defs>
-  <rect x="3" y="3" width="114" height="114" rx="30" fill="#0A1024" stroke="#23345C" stroke-width="2"/>
-  <path d="M60 17 L96 38 L96 82 L60 103 L24 82 L24 38 Z" fill="url(#lg)" opacity=".96"/>
-  <path d="M41 79 V47 L60 66 L79 47 V79" fill="none" stroke="#fff" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Merlin: wizard hat -->
+  <path d="M150 238C177 151 236 84 346 57C322 94 322 128 343 158C365 190 400 205 434 202C384 235 323 247 254 241C209 237 173 235 150 238Z" fill="url(#hat)"/>
+  <path d="M150 238C214 249 317 255 434 202C407 238 348 263 276 265C218 266 173 255 150 238Z" fill="#09275A" opacity=".9"/>
+  <path d="M346 65C334 108 345 146 376 174C344 168 318 145 310 116C317 94 329 77 346 65Z" fill="#082F83" opacity=".75"/>
+  <path d="M244 129L255 153L280 164L255 175L244 200L233 175L208 164L233 153Z" fill="#F3FCFF"/>
+
+  <!-- M monogram integrated into the hat silhouette -->
+  <path d="M163 300L187 223L254 281L321 223L346 300L311 300L300 261L254 300L209 261L198 300Z"
+        fill="#76EFFF" opacity=".96"/>
+
+  <!-- Router antennas -->
+  <path d="M143 347L129 278M369 347L383 278" fill="none" stroke="#8AB8E8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M143 347L129 278M369 347L383 278" fill="none" stroke="#D7F2FF" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+
+  <!-- Router chassis -->
+  <path d="M157 349H355L385 402Q390 414 375 414H137Q122 414 127 402Z"
+        fill="url(#body)" stroke="#9AC8F0" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M163 397H350" stroke="#20DFF2" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#38EAF5">
+    <circle cx="194" cy="379" r="7.5"/>
+    <circle cx="235" cy="379" r="7.5"/>
+    <circle cx="276" cy="379" r="7.5"/>
+    <circle cx="317" cy="379" r="7.5"/>
+  </g>
+
+  <!-- Clash proxy traffic: orbit wraps around the Merlin router -->
+  <path d="M64 322C105 365 225 360 330 318C398 291 450 248 449 211C448 181 420 163 390 160"
+        fill="none" stroke="url(#orbit)" stroke-width="15" stroke-linecap="round"/>
+  <path d="M64 322C78 298 98 279 122 264" fill="none" stroke="#167BFF" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="390" cy="160" r="7" fill="#55F1E8"/>
 </svg>
