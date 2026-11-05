@@ -4,10 +4,12 @@ MlClash 的长期品牌形象：**Merlin 魔法师 + Clash 猫咪 + 路由器**�
 
 | 文件 | 尺寸 | 用途 |
 |---|---|---|
-| `mascot.png` | 1254×1254，透明 | 原始吉祥物 |
+| `logo.svg` | 1254×1254，透明 | 品牌源文件 |
 | `logo.png` | 512×512，圆角深色底 | 应用图标、面板 favicon、软件中心图标 |
 | `avatar.png` | 512×512 | GitHub 账号 / 组织头像 |
 | `hero.jpg` | 2400×840 | README 头图 |
+
+`logo.png`、`avatar.png` 和 `hero.jpg` 均由 `logo.svg` 生成。
 
 更新品牌形象时，请同步替换：
 
